@@ -13,8 +13,13 @@ type Server struct {
 	users    map[int]*User
 }
 
-func NewServer(address string) (*Server, error) {
-	l, err := net.Listen("tcp", address)
+func NewServer(port string) (*Server, error) {
+	ip := ":"
+	if port == "8080" {
+		ip = "127.0.0.1:"
+	}
+
+	l, err := net.Listen("tcp", ip+port)
 	if err != nil {
 		return nil, err
 	}
