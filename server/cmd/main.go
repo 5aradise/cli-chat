@@ -13,7 +13,7 @@ func main() {
 		port = "8080"
 	}
 
-	server, err := chat.NewServer(port)
+	server, err := chat.New(port)
 	if err != nil {
 		log.Fatal(err)
 	}
