@@ -2,6 +2,7 @@ package chat
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -12,12 +13,19 @@ type Chat struct {
 	mux   sync.RWMutex
 }
 
-func NewChat(id int) *Chat {
+func (s *Server) NewChat(id int) *Chat {
 	chat := &Chat{
 		id:    id,
 		users: make(map[int]*User),
 		mux:   sync.RWMutex{},
 	}
+
+	s.chatsMux.Lock()
+	s.chats[id] = chat
+	s.chatsMux.Unlock()
+
+	fmt.Printf("New chat: %d\n", id)
+
 	return chat
 }
 
@@ -29,21 +37,10 @@ func (ch *Chat) AddUser(u *User) error {
 		return errors.New("User with this id already exist")
 	}
 	ch.users[u.id] = u
+	u.currChat = ch
 	ch.mux.Unlock()
 
-	ch.SystemCall(u.name + " has been added")
-	go func() {
-		for {
-			msg, err := u.Read()
-			if err != nil {
-				break
-			}
-			ch.Write(u, msg)
-		}
-		u.conn.Close()
-		ch.DeleteUser(u.id)
-		ch.SystemCall(u.name + " leaved")
-	}()
+	ch.ChatCall(u.name + " has been added")
 	return nil
 }
 
@@ -51,25 +48,28 @@ func (ch *Chat) DeleteUser(id int) {
 	ch.mux.Lock()
 	defer ch.mux.Unlock()
 
+	u := ch.users[id]
+	ch.ChatCall(u.name + " left the chat room")
+	u.currChat = nil
 	delete(ch.users, id)
 }
 
-func (ch *Chat) Write(src *User, msg string) {
+func (ch *Chat) ChatCall(msg string) {
+	ch.Write(&User{nil, 0, "Chat", nil}, []byte(msg))
+}
+
+func (ch *Chat) Write(src *User, msg []byte) {
 	ch.mux.RLock()
 	defer ch.mux.RUnlock()
 
-	toSend := src.name + ": " + msg
+	toSend := append([]byte(src.name+": "), msg...)
 
 	for _, dst := range ch.users {
 		if dst != src {
-			err := dst.Write(toSend)
+			_, err := dst.Write(toSend)
 			if err != nil {
 				log.Println(err)
 			}
 		}
 	}
-}
-
-func (ch *Chat) SystemCall(msg string) {
-	ch.Write(&User{0, "System", nil}, msg)
 }

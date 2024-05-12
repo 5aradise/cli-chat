@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
+	"sync"
 )
 
 type Server struct {
-	listener net.Listener
+	net.Listener
 	chats    map[int]*Chat
+	chatsMux sync.RWMutex
 	users    map[int]*User
+	usersMux sync.RWMutex
 }
 
 func New(port string) (*Server, error) {
@@ -24,94 +26,39 @@ func New(port string) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		l,
-		make(map[int]*Chat),
-		make(map[int]*User),
+		Listener: l,
+		chats:    make(map[int]*Chat),
+		chatsMux: sync.RWMutex{},
+		users:    make(map[int]*User),
+		usersMux: sync.RWMutex{},
 	}, nil
 }
 
 func (s *Server) Run() {
 	for {
-		conn, err := s.listener.Accept()
+		conn, err := s.Accept()
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		go s.acceptConn(conn)
+		go s.authUser(conn)
 	}
 }
 
-func (s *Server) acceptConn(conn net.Conn) {
-	user, err := s.authUser(conn)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	err = s.connetToChat(user)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-}
-
-func (s *Server) authUser(conn net.Conn) (*User, error) {
+func (s *Server) authUser(conn net.Conn) {
 	_, err := conn.Write([]byte("Enter name"))
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	buf := make([]byte, 1024)
 	l, err := conn.Read(buf)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	user := NewUser(string(buf[:l]), conn)
-	s.users[user.id] = user
+	user := s.NewUser(string(buf[:l]), conn)
 
-	_, err = conn.Write([]byte(fmt.Sprintf("User with id %d have been created", user.id)))
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
-}
-
-func (s *Server) connetToChat(user *User) error {
-	err := user.Write("Enter chat id")
-	if err != nil {
-		return err
-	}
-
-	input, err := user.Read()
-	if err != nil {
-		return err
-	}
-
-	chatId, err := strconv.Atoi(input)
-	for err == strconv.ErrSyntax {
-		err = user.Write("Please write a number")
-		if err != nil {
-			return err
-		}
-
-		input, err = user.Read()
-		if err != nil {
-			return err
-		}
-		chatId, err = strconv.Atoi(input)
-	}
-	if err != nil {
-		return err
-	}
-
-	chat, ok := s.chats[chatId]
-	if !ok {
-		chat = NewChat(chatId)
-		s.chats[chatId] = chat
-	}
-
-	return chat.AddUser(user)
+	conn.Write([]byte(fmt.Sprintf("User with id %d have been created", user.id)))
 }

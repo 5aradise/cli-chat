@@ -1,8 +1,13 @@
 package client
 
 import (
+	"bufio"
 	"fmt"
 	"net"
+	"os"
+	"strings"
+
+	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
 type Client struct {
@@ -18,25 +23,46 @@ func New() (*Client, error) {
 }
 
 func (c *Client) Run() error {
-	var input string
-	fmt.Scan()
+	go c.listenServer()
+	return c.listenClient()
+}
 
+func (c *Client) listenServer() {
 	buf := make([]byte, 1024)
-	go func() {
-		for {
-			l, err := c.Read(buf)
-			if err != nil {
-				continue
-			}
-			fmt.Println(string(buf[:l]))
-		}
-	}()
 
 	for {
-		fmt.Scan(&input)
+		l, err := c.Read(buf)
+		if err != nil {
+			continue
+		}
+		fmt.Println(string(buf[:l]))
+	}
+}
+
+func (c *Client) listenClient() error {
+	scanner := bufio.NewScanner(os.Stdin)
+	var err error
+	for {
+		scanner.Scan()
+		input := scanner.Text()
+		if input[:1] == "/" {
+			args := strings.Split(input[1:], " ")
+			command, ok := commands[args[0]]
+			if !ok {
+				fmt.Println(cli.Color("System: unknown command", cli.Red))
+				continue
+			}
+			err := command.fn(c, args[1:])
+			if err != nil {
+				fmt.Println(err)
+			}
+			continue
+		}
 		_, err := c.Write([]byte(input))
 		if err != nil {
 			fmt.Println(err)
+			break
 		}
 	}
+	return err
 }
