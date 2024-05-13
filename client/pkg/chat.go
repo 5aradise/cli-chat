@@ -1,9 +1,9 @@
 package client
 
 func (c *Client) connToChat(args []string) error {
-	const CommandCode byte = 1
+	const connectionCode byte = 1
 
-	req := []byte{commandCode, CommandCode}
+	req := []byte{commandsCode, connectionCode}
 
 	req = append(req, []byte(args[0])...)
 

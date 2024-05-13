@@ -47,7 +47,7 @@ func (s *Server) Run() {
 }
 
 func (s *Server) authUser(conn net.Conn) {
-	_, err := conn.Write([]byte("Enter name"))
+	_, err := conn.Write(append([]byte{0, 0}, []byte("Enter name")...))
 	if err != nil {
 		return
 	}
@@ -60,5 +60,5 @@ func (s *Server) authUser(conn net.Conn) {
 
 	user := s.NewUser(string(buf[:l]), conn)
 
-	conn.Write([]byte(fmt.Sprintf("User with id %d have been created", user.id)))
+	conn.Write(append([]byte{0, 0}, []byte(fmt.Sprintf("User with id %d have been created", user.id))...))
 }

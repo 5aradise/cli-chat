@@ -12,6 +12,7 @@ import (
 
 type Client struct {
 	net.Conn
+	chatColors map[string]cli.Color
 }
 
 func New() (*Client, error) {
@@ -19,7 +20,7 @@ func New() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conn}, nil
+	return &Client{conn, make(map[string]cli.Color)}, nil
 }
 
 func (c *Client) Run() error {
@@ -35,7 +36,16 @@ func (c *Client) listenServer() {
 		if err != nil {
 			continue
 		}
-		fmt.Println(string(buf[:l]))
+		if buf[0] == 0 {
+			switch buf[1] {
+			case 0:
+				fmt.Println(formatSystemMsg(buf[2:l]))
+			case 1:
+				fmt.Println(formatChatMsg(buf[2:l]))
+			}
+			continue
+		}
+		fmt.Println(c.formatUserMsg(buf[:l]))
 	}
 }
 
@@ -49,7 +59,7 @@ func (c *Client) listenClient() error {
 			args := strings.Split(input[1:], " ")
 			command, ok := commands[args[0]]
 			if !ok {
-				fmt.Println(cli.Color("System: unknown command", cli.Red))
+				fmt.Println(cli.Colorize("System: unknown command", cli.RedS))
 				continue
 			}
 			err := command.fn(c, args[1:])

@@ -55,14 +55,27 @@ func (ch *Chat) DeleteUser(id int) {
 }
 
 func (ch *Chat) ChatCall(msg string) {
-	ch.Write(&User{nil, 0, "Chat", nil}, []byte(msg))
+	ch.mux.RLock()
+	defer ch.mux.RUnlock()
+
+	toSend := append([]byte{0, 1}, []byte(msg)...)
+
+	for _, dst := range ch.users {
+		_, err := dst.Write(toSend)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func (ch *Chat) Write(src *User, msg []byte) {
 	ch.mux.RLock()
 	defer ch.mux.RUnlock()
 
-	toSend := append([]byte(src.name+": "), msg...)
+	const userMsgDiv byte = 0
+
+	toSend := append([]byte(src.name), userMsgDiv)
+	toSend = append(toSend, msg...)
 
 	for _, dst := range ch.users {
 		if dst != src {

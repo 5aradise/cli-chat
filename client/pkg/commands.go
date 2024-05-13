@@ -1,6 +1,6 @@
 package client
 
-const commandCode byte = 0
+const commandsCode byte = 0
 
 type command struct {
 	desc string

@@ -44,24 +44,24 @@ func (u *User) listenConn(s *Server) {
 		if buf[0] == CommandSignal {
 			command, ok := commands[buf[1]]
 			if !ok {
-				u.Writes("unknown command")
+				u.WriteSystemCall("unknown command")
 				continue
 			}
 			err := command(s, u, buf[2:l])
 			if err != nil {
-				u.Writes(err.Error())
+				u.WriteSystemCall(err.Error())
 			}
 			continue
 		}
 		if u.currChat == nil {
-			u.Writes("you are not connected to any chat")
+			u.WriteSystemCall("you are not connected to any chat")
 			continue
 		}
 		u.currChat.Write(u, buf[:l])
 	}
 }
 
-func (u *User) Writes(s string) error {
-	_, err := u.Write([]byte(s))
+func (u *User) WriteSystemCall(s string) error {
+	_, err := u.Write(append([]byte{0, 0}, []byte(s)...))
 	return err
 }
