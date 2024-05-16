@@ -46,9 +46,9 @@ func (ch *Chat) AddUser(u *User) error {
 
 func (ch *Chat) DeleteUser(id int) {
 	ch.mux.Lock()
-	defer ch.mux.Unlock()
-
 	u := ch.users[id]
+	ch.mux.Unlock()
+
 	ch.ChatCall(u.name + " left the chat room")
 	u.currChat = nil
 	delete(ch.users, id)

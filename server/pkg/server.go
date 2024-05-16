@@ -2,7 +2,6 @@ package chat
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"sync"
 )
@@ -35,12 +34,17 @@ func New(port string) (*Server, error) {
 }
 
 func (s *Server) Run() {
+	defer s.Close()
+
+	fmt.Println("Start listening on", s.Addr())
 	for {
 		conn, err := s.Accept()
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 			continue
 		}
+
+		fmt.Println("Accept new connection:", conn.RemoteAddr())
 
 		go s.authUser(conn)
 	}
@@ -60,5 +64,25 @@ func (s *Server) authUser(conn net.Conn) {
 
 	user := s.NewUser(string(buf[:l]), conn)
 
-	conn.Write(append([]byte{0, 0}, []byte(fmt.Sprintf("User with id %d have been created", user.id))...))
+	successMsg := fmt.Sprintf("User with id %d have been created", user.id)
+	user.Write(append([]byte{0, 0}, []byte(successMsg)...))
+}
+
+func (s *Server) deleteUser(id int) error {
+	s.usersMux.Lock()
+	defer s.usersMux.Unlock()
+
+	user, ok := s.users[id]
+	if !ok {
+		return fmt.Errorf("cannot find user with id: %d", id)
+	}
+
+	if user.currChat != nil {
+		user.currChat.DeleteUser(id)
+	}
+	delete(s.users, id)
+	user.Close()
+
+	fmt.Printf("Delete user: %d (%v)\n", id, user.RemoteAddr())
+	return nil
 }

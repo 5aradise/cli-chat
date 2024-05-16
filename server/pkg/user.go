@@ -27,7 +27,7 @@ func (s *Server) NewUser(name string, conn net.Conn) *User {
 	s.users[u.id] = u
 	s.usersMux.Unlock()
 
-	fmt.Printf("New user: %d\n", u.id)
+	fmt.Printf("New user: %d (%v)\n", u.id, conn.RemoteAddr())
 
 	go u.listenConn(s)
 
@@ -59,6 +59,7 @@ func (u *User) listenConn(s *Server) {
 		}
 		u.currChat.Write(u, buf[:l])
 	}
+	s.deleteUser(u.id)
 }
 
 func (u *User) WriteSystemCall(s string) error {

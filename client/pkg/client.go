@@ -15,8 +15,8 @@ type Client struct {
 	chatColors map[string]cli.Color
 }
 
-func New() (*Client, error) {
-	conn, err := net.Dial("tcp", "127.0.0.1:8080")
+func New(address string) (*Client, error) {
+	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
