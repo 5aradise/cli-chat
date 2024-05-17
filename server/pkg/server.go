@@ -6,6 +6,15 @@ import (
 	"sync"
 )
 
+const (
+	systemMsgCode byte = 0x00
+	chatMsgCode   byte = 0x10
+	userMsgCode   byte = 0x20
+	createCode    byte = 0x01	
+	connCode      byte = 0x02
+	exitCode      byte = 0x03
+)
+
 type Server struct {
 	net.Listener
 	chats    map[int]*Chat
@@ -65,7 +74,7 @@ func (s *Server) authUser(conn net.Conn) {
 	user := s.NewUser(string(buf[:l]), conn)
 
 	successMsg := fmt.Sprintf("User with id %d have been created", user.id)
-	user.Write(append([]byte{0, 0}, []byte(successMsg)...))
+	user.Write(append([]byte{systemMsgCode}, []byte(successMsg)...))
 }
 
 func (s *Server) deleteUser(id int) error {

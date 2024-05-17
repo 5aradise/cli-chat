@@ -7,16 +7,18 @@ import (
 )
 
 func (c *Client) formatUserMsg(b []byte) string {
-	div := slices.Index(b, 0)
+	div := slices.Index(b, 0x00)
 	if div == -1 {
 		return ""
 	}
+	var reservedColors []cli.Color = []cli.Color{cli.Red, cli.RedS, cli.White, cli.WhiteS}
+
 	user, msg := string(b[:div]), string(b[div+1:])
 
 	userColor, ok := c.chatColors[user]
 	if !ok {
 		randColor := cli.RandColor()
-		for randColor == cli.Red || randColor == cli.RedS {
+		for slices.Index(reservedColors, randColor) != -1 {
 			randColor = cli.RandColor()
 		}
 		c.chatColors[user] = randColor

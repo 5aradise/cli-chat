@@ -43,7 +43,7 @@ func PrintInputFrame() {
 	RestoreCursor()
 }
 
-func SafePrint(printLn *int, s string) {
+func SafePrintf(printLn *int, format string, a ...any) {
 	SaveCursor()
 	if *printLn == InputLn-1 {
 		ClearConsole()
@@ -52,7 +52,7 @@ func SafePrint(printLn *int, s string) {
 	}
 	MoveTo(*printLn)
 	*printLn++
-	fmt.Print(s)
+	fmt.Printf(format, a...)
 	RestoreCursor()
 }
 

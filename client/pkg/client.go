@@ -4,15 +4,24 @@ import (
 	"bufio"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
+const (
+	systemMsgCode byte = 0x00
+	chatMsgCode   byte = 0x10
+	userMsgCode   byte = 0x20
+	createCode    byte = 0x01
+	connCode      byte = 0x02
+	exitCode      byte = 0x03
+)
+
 type Client struct {
 	net.Conn
-	chatColors map[string]cli.Color
 	printLn    *int
+	isInChat   bool
+	chatColors map[string]cli.Color
 }
 
 func New(address string) (*Client, error) {
@@ -21,10 +30,22 @@ func New(address string) (*Client, error) {
 		return nil, err
 	}
 	printLn := 1
-	return &Client{conn, make(map[string]cli.Color), &printLn}, nil
+	return &Client{conn, &printLn, false, nil}, nil
+}
+
+func (c *Client) updateScreen() {
+	cli.ClearConsole()
+	cli.PrintInputFrame()
+	cli.MoveToInput()
+	*c.printLn = 1
+}
+
+func (c *Client) printf(format string, a ...any) {
+	cli.SafePrintf(c.printLn, format, a...)
 }
 
 func (c *Client) Run() error {
+	c.updateScreen()
 	go c.listenServer()
 	return c.listenClient()
 }
@@ -35,19 +56,13 @@ func (c *Client) listenServer() {
 	for {
 		l, err := c.Read(buf)
 		if err != nil {
-			continue
+			break
 		}
-		if buf[0] == 0 {
-			switch buf[1] {
-			case 0:
-				cli.SafePrint(c.printLn, formatSystemMsg(buf[2:l]))
-			case 1:
-				cli.SafePrint(c.printLn, formatChatMsg(buf[2:l]))
-			}
-			continue
-		}
-		cli.SafePrint(c.printLn, c.formatUserMsg(buf[:l]))
+		c.processResp(buf[:l])
 	}
+
+	cli.ClearConsole()
+	c.printf(cli.Colorize("You've been disconnected from the server", cli.RedS))
 }
 
 func (c *Client) listenClient() error {
@@ -55,27 +70,18 @@ func (c *Client) listenClient() error {
 	scanner := bufio.NewScanner(os.Stdin)
 	cli.PrintInputFrame()
 	cli.MoveToInput()
+	var input string
+	for len(input) == 0 {
+		input = cli.Scan(scanner)
+	}
+	c.Write([]byte(input))
 	for {
-		input := cli.Scan(scanner)
+		input = cli.Scan(scanner)
 		if len(input) == 0 {
 			continue
 		}
-		if input[:1] == "/" {
-			args := strings.Split(input[1:], " ")
-			command, ok := commands[args[0]]
-			if !ok {
-				cli.SafePrint(c.printLn, cli.Colorize("System: unknown command", cli.RedS))
-				continue
-			}
-			err := command.fn(c, args[1:])
-			if err != nil {
-				cli.SafePrint(c.printLn, err.Error())
-			}
-			continue
-		}
-		_, err := c.Write([]byte(input))
+		err = c.processReq(input)
 		if err != nil {
-			cli.SafePrint(c.printLn, err.Error())
 			break
 		}
 	}

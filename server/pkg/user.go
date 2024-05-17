@@ -41,28 +41,22 @@ func (u *User) listenConn(s *Server) {
 		if err != nil {
 			break
 		}
-		if buf[0] == CommandSignal {
-			command, ok := commands[buf[1]]
-			if !ok {
-				u.WriteSystemCall("unknown command")
-				continue
-			}
-			err := command(s, u, buf[2:l])
-			if err != nil {
-				u.WriteSystemCall(err.Error())
-			}
+
+		command, ok := commands[buf[0]]
+		if !ok {
+			u.WriteSystemCall("unknown command")
 			continue
 		}
-		if u.currChat == nil {
-			u.WriteSystemCall("you are not connected to any chat")
-			continue
+
+		err = command(s, u, buf[1:l])
+		if err != nil {
+			u.WriteSystemCall(err.Error())
 		}
-		u.currChat.Write(u, buf[:l])
 	}
 	s.deleteUser(u.id)
 }
 
 func (u *User) WriteSystemCall(s string) error {
-	_, err := u.Write(append([]byte{0, 0}, []byte(s)...))
+	_, err := u.Write(append([]byte{systemMsgCode}, []byte(s)...))
 	return err
 }
