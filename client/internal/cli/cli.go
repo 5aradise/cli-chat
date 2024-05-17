@@ -1,41 +1,66 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
-	"math/rand"
 )
 
-type Color string
+const InputLn = 29
 
-const (
-	Reset          = "\x1b[0m"
-	Red      Color = "\x1b[31m"
-	Green    Color = "\x1b[32m"
-	Yellow   Color = "\x1b[33m"
-	Blue     Color = "\x1b[34m"
-	Magenta  Color = "\x1b[35m"
-	Cyan     Color = "\x1b[36m"
-	White    Color = "\x1b[37m"
-	GrayS    Color = "\x1b[90m"
-	RedS     Color = "\x1b[91m"
-	GreenS   Color = "\x1b[92m"
-	YellowS  Color = "\x1b[93m"
-	BlueS    Color = "\x1b[94m"
-	MagentaS Color = "\x1b[95m"
-	CyanS    Color = "\x1b[96m"
-	WhiteS   Color = "\x1b[97m"
-)
-
-var AllColors []Color = []Color{Red, RedS, Green, GreenS, Yellow, YellowS, Blue, BlueS, Magenta, MagentaS, Cyan, CyanS, White, WhiteS, GrayS}
-
-func Clear() {
-	fmt.Print("\x1b[H\x1b[J")
+func SaveCursor() {
+	fmt.Print("\x1b7")
 }
 
-func Colorize(str string, c Color) string {
-	return string(c) + str + Reset
+func RestoreCursor() {
+	fmt.Print("\x1b8")
 }
 
-func RandColor() Color {
-	return AllColors[rand.Intn(len(AllColors))]
+func MoveTo(row int, column ...int) {
+	if len(column) != 0 {
+		fmt.Printf("\x1b[%d;%dH", row, column[0])
+	} else {
+		fmt.Printf("\x1b[%d;H", row)
+	}
+}
+
+func MoveToInput() {
+	MoveTo(InputLn, 2)
+}
+
+func ClearConsole() {
+	SaveCursor()
+	MoveTo(1)
+	fmt.Print("\x1b[0J")
+	RestoreCursor()
+}
+
+func PrintInputFrame() {
+	SaveCursor()
+	MoveTo(InputLn - 1)
+	fmt.Print("---------------------------------------------------------------------------------------------------------\n")
+	fmt.Print("|                                                                                                       |\n")
+	fmt.Print("---------------------------------------------------------------------------------------------------------")
+	RestoreCursor()
+}
+
+func SafePrint(printLn *int, s string) {
+	SaveCursor()
+	if *printLn == InputLn-1 {
+		ClearConsole()
+		PrintInputFrame()
+		*printLn = 1
+	}
+	MoveTo(*printLn)
+	*printLn++
+	fmt.Print(s)
+	RestoreCursor()
+}
+
+func Scan(scanner *bufio.Scanner) string {
+	scanner.Scan()
+	MoveToInput()
+	fmt.Print("\x1b[K")
+	fmt.Print("                                                                                                       |")
+	MoveToInput()
+	return scanner.Text()
 }

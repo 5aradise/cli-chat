@@ -2,7 +2,6 @@ package client
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -13,6 +12,7 @@ import (
 type Client struct {
 	net.Conn
 	chatColors map[string]cli.Color
+	printLn    *int
 }
 
 func New(address string) (*Client, error) {
@@ -20,7 +20,8 @@ func New(address string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conn, make(map[string]cli.Color)}, nil
+	printLn := 1
+	return &Client{conn, make(map[string]cli.Color), &printLn}, nil
 }
 
 func (c *Client) Run() error {
@@ -39,38 +40,42 @@ func (c *Client) listenServer() {
 		if buf[0] == 0 {
 			switch buf[1] {
 			case 0:
-				fmt.Println(formatSystemMsg(buf[2:l]))
+				cli.SafePrint(c.printLn, formatSystemMsg(buf[2:l]))
 			case 1:
-				fmt.Println(formatChatMsg(buf[2:l]))
+				cli.SafePrint(c.printLn, formatChatMsg(buf[2:l]))
 			}
 			continue
 		}
-		fmt.Println(c.formatUserMsg(buf[:l]))
+		cli.SafePrint(c.printLn, c.formatUserMsg(buf[:l]))
 	}
 }
 
 func (c *Client) listenClient() error {
-	scanner := bufio.NewScanner(os.Stdin)
 	var err error
+	scanner := bufio.NewScanner(os.Stdin)
+	cli.PrintInputFrame()
+	cli.MoveToInput()
 	for {
-		scanner.Scan()
-		input := scanner.Text()
+		input := cli.Scan(scanner)
+		if len(input) == 0 {
+			continue
+		}
 		if input[:1] == "/" {
 			args := strings.Split(input[1:], " ")
 			command, ok := commands[args[0]]
 			if !ok {
-				fmt.Println(cli.Colorize("System: unknown command", cli.RedS))
+				cli.SafePrint(c.printLn, cli.Colorize("System: unknown command", cli.RedS))
 				continue
 			}
 			err := command.fn(c, args[1:])
 			if err != nil {
-				fmt.Println(err)
+				cli.SafePrint(c.printLn, err.Error())
 			}
 			continue
 		}
 		_, err := c.Write([]byte(input))
 		if err != nil {
-			fmt.Println(err)
+			cli.SafePrint(c.printLn, err.Error())
 			break
 		}
 	}
