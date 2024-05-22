@@ -5,23 +5,23 @@ import (
 	"strconv"
 )
 
-var commands map[byte]func(*Server, *User, []byte) error = map[byte]func(*Server, *User, []byte) error{
-	userMsgCode: (*Server).msgToChat,
-	createCode:  (*Server).createChat,
-	connCode:    (*Server).connChat,
-	exitCode:    (*Server).exitChat,
+var commands map[header]func(*server, *user, []byte) error = map[header]func(*server, *user, []byte) error{
+	userMsg: (*server).msgToChat,
+	create:  (*server).createChat,
+	connect: (*server).connChat,
+	exit:    (*server).exitChat,
 }
 
-func (s *Server) msgToChat(user *User, args []byte) error {
+func (s *server) msgToChat(user *user, args []byte) error {
 	if user.currChat == nil {
 		return errors.New("you are not connected to any chat")
 	}
-	user.currChat.Write(user, args)
+	user.currChat.writeUserMsg(user, args)
 
 	return nil
 }
 
-func (s *Server) createChat(user *User, args []byte) error {
+func (s *server) createChat(user *user, args []byte) error {
 	if user.currChat != nil {
 		return errors.New("to connect to chat you must leave current")
 	}
@@ -38,17 +38,17 @@ func (s *Server) createChat(user *User, args []byte) error {
 		return errors.New("chat with this id already exist")
 	}
 
-	chat := s.NewChat(chatId)
-	err = chat.AddUser(user)
+	chat := s.newChat(chatId)
+	err = chat.addUser(user)
 	if err != nil {
 		return err
 	}
 
-	user.Write([]byte{connCode, 0x00})
+	user.conn.Write(connect.setHeaderB([]byte{0}))
 	return nil
 }
 
-func (s *Server) connChat(user *User, args []byte) error {
+func (s *server) connChat(user *user, args []byte) error {
 	if user.currChat != nil {
 		return errors.New("to connect to chat you must leave current")
 	}
@@ -65,22 +65,22 @@ func (s *Server) connChat(user *User, args []byte) error {
 		return errors.New("wrong chat id")
 	}
 
-	err = chat.AddUser(user)
+	err = chat.addUser(user)
 	if err != nil {
 		return err
 	}
 
-	user.Write([]byte{connCode, 0x00})
+	user.conn.Write(connect.setHeaderB([]byte{0}))
 	return nil
 }
 
-func (s *Server) exitChat(user *User, args []byte) error {
+func (s *server) exitChat(user *user, args []byte) error {
 	if user.currChat == nil {
 		return errors.New("you are not in the chat")
 	}
 
-	user.currChat.DeleteUser(user.id)
+	user.currChat.deleteUser(user.id)
 
-	user.Write([]byte{exitCode, 0x00})
+	user.conn.Write(exit.setHeaderB([]byte{0}))
 	return nil
 }

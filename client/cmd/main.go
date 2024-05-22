@@ -25,8 +25,5 @@ func main() {
 		return
 	}
 
-	err = client.Run()
-	if err != nil {
-		fmt.Println(err)
-	}
+	client.Run()
 }

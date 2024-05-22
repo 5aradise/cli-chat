@@ -1,23 +1,23 @@
 package chat
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
 	"net"
 )
 
 const CommandSignal = 0
 
-type User struct {
-	net.Conn
+type user struct {
+	conn     net.Conn
 	id       int
 	name     string
-	currChat *Chat
+	currChat *chat
 }
 
-func (s *Server) NewUser(name string, conn net.Conn) *User {
-	u := &User{
-		Conn:     conn,
+func (s *server) newUser(name string, conn net.Conn) *user {
+	u := &user{
+		conn:     conn,
 		id:       rand.Intn(1000000),
 		name:     name,
 		currChat: nil,
@@ -27,36 +27,33 @@ func (s *Server) NewUser(name string, conn net.Conn) *User {
 	s.users[u.id] = u
 	s.usersMux.Unlock()
 
-	fmt.Printf("New user: %d (%v)\n", u.id, conn.RemoteAddr())
-
-	go u.listenConn(s)
+	log.Printf("New user: %d (%v)\n", u.id, conn.RemoteAddr())
 
 	return u
 }
 
-func (u *User) listenConn(s *Server) {
+func (u *user) listenConn(s *server) {
 	buf := make([]byte, 1024)
 	for {
-		l, err := u.Read(buf)
+		l, err := u.conn.Read(buf)
 		if err != nil {
 			break
 		}
 
-		command, ok := commands[buf[0]]
+		command, ok := commands[header(buf[0])]
 		if !ok {
-			u.WriteSystemCall("unknown command")
+			u.writeSystemCall("unknown command")
 			continue
 		}
 
 		err = command(s, u, buf[1:l])
 		if err != nil {
-			u.WriteSystemCall(err.Error())
+			u.writeSystemCall(err.Error())
 		}
 	}
-	s.deleteUser(u.id)
 }
 
-func (u *User) WriteSystemCall(s string) error {
-	_, err := u.Write(append([]byte{systemMsgCode}, []byte(s)...))
+func (u *user) writeSystemCall(s string) error {
+	_, err := u.conn.Write(systemMsg.setHeaderS(s))
 	return err
 }

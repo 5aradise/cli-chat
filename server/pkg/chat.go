@@ -2,21 +2,20 @@ package chat
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 )
 
-type Chat struct {
+type chat struct {
 	id    int
-	users map[int]*User
+	users map[int]*user
 	mux   sync.RWMutex
 }
 
-func (s *Server) NewChat(id int) *Chat {
-	chat := &Chat{
+func (s *server) newChat(id int) *chat {
+	chat := &chat{
 		id:    id,
-		users: make(map[int]*User),
+		users: make(map[int]*user),
 		mux:   sync.RWMutex{},
 	}
 
@@ -24,66 +23,59 @@ func (s *Server) NewChat(id int) *Chat {
 	s.chats[id] = chat
 	s.chatsMux.Unlock()
 
-	fmt.Printf("New chat: %d\n", id)
+	log.Printf("New chat: %d\n", id)
 
 	return chat
 }
 
-func (ch *Chat) AddUser(u *User) error {
+func (ch *chat) addUser(u *user) error {
 	ch.mux.Lock()
-
 	if _, ok := ch.users[u.id]; ok {
 		ch.mux.Unlock()
-		return errors.New("User with this id already exist")
+		return errors.New("user with this id already exist")
 	}
 	ch.users[u.id] = u
 	u.currChat = ch
 	ch.mux.Unlock()
 
-	ch.ChatCall(u.name + " has been added")
+	ch.chatCall(u.name + " has been added")
 	return nil
 }
 
-func (ch *Chat) DeleteUser(id int) {
+func (ch *chat) deleteUser(id int) {
 	ch.mux.Lock()
 	u := ch.users[id]
 	delete(ch.users, id)
 	ch.mux.Unlock()
 	u.currChat = nil
 
-	ch.ChatCall(u.name + " left the chat room")
+	ch.chatCall(u.name + " left the chat room")
 }
 
-func (ch *Chat) ChatCall(msg string) {
+func (ch *chat) chatCall(msg string) {
 	ch.mux.RLock()
 	defer ch.mux.RUnlock()
 
-	toSend := append([]byte{chatMsgCode}, []byte(msg)...)
+	toSend := chatMsg.setHeaderS(msg)
 
 	for _, dst := range ch.users {
-		_, err := dst.Write(toSend)
-		if err != nil {
-			log.Println(err)
-		}
+		dst.conn.Write(toSend)
 	}
 }
 
-func (ch *Chat) Write(src *User, msg []byte) {
+func (ch *chat) writeUserMsg(src *user, msg []byte) {
 	const userMsgDiv byte = 0x00
+
+	toSend := append([]byte(src.name), userMsgDiv)
+	toSend = append(toSend, msg...)
+	toSend = userMsg.setHeaderB(toSend)
 
 	ch.mux.RLock()
 	defer ch.mux.RUnlock()
 
-	toSend := append([]byte{userMsgCode}, []byte(src.name)...)
-	toSend = append(toSend, userMsgDiv)
-	toSend = append(toSend, msg...)
-
 	for _, dst := range ch.users {
 		if dst != src {
-			_, err := dst.Write(toSend)
-			if err != nil {
-				log.Println(err)
-			}
+			dst.conn.Write(toSend)
 		}
 	}
 }

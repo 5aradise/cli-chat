@@ -6,7 +6,7 @@ import (
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
-func (c *Client) formatUserMsg(b []byte) string {
+func (c *client) formatUserMsg(b []byte) string {
 	div := slices.Index(b, 0x00)
 	if div == -1 {
 		return ""

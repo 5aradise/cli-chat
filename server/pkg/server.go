@@ -2,28 +2,20 @@ package chat
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"sync"
 )
 
-const (
-	systemMsgCode byte = 0x00
-	chatMsgCode   byte = 0x10
-	userMsgCode   byte = 0x20
-	createCode    byte = 0x01	
-	connCode      byte = 0x02
-	exitCode      byte = 0x03
-)
-
-type Server struct {
+type server struct {
 	net.Listener
-	chats    map[int]*Chat
+	chats    map[int]*chat
 	chatsMux sync.RWMutex
-	users    map[int]*User
+	users    map[int]*user
 	usersMux sync.RWMutex
 }
 
-func New(port string) (*Server, error) {
+func New(port string) (*server, error) {
 	host := ""
 	if port == "8080" {
 		host = "127.0.0.1"
@@ -33,51 +25,59 @@ func New(port string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	return &server{
 		Listener: l,
-		chats:    make(map[int]*Chat),
+		chats:    make(map[int]*chat),
 		chatsMux: sync.RWMutex{},
-		users:    make(map[int]*User),
+		users:    make(map[int]*user),
 		usersMux: sync.RWMutex{},
 	}, nil
 }
 
-func (s *Server) Run() {
+func (s *server) Run() {
 	defer s.Close()
 
-	fmt.Println("Start listening on", s.Addr())
+	log.Println("Start listening on", s.Addr())
 	for {
 		conn, err := s.Accept()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		}
 
-		fmt.Println("Accept new connection:", conn.RemoteAddr())
+		log.Println("Accept new connection:", conn.RemoteAddr())
 
-		go s.authUser(conn)
+		go func() {
+			user, err := s.authUser(conn)
+			if err != nil {
+				return
+			}
+			user.listenConn(s)
+			s.deleteUser(user.id)
+		}()
 	}
 }
 
-func (s *Server) authUser(conn net.Conn) {
-	_, err := conn.Write(append([]byte{0, 0}, []byte("Enter name")...))
+func (s *server) authUser(conn net.Conn) (*user, error) {
+	_, err := conn.Write(systemMsg.setHeaderS("Enter name"))
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	buf := make([]byte, 1024)
 	l, err := conn.Read(buf)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	user := s.NewUser(string(buf[:l]), conn)
+	user := s.newUser(string(buf[:l]), conn)
 
-	successMsg := fmt.Sprintf("User with id %d have been created", user.id)
-	user.Write(append([]byte{systemMsgCode}, []byte(successMsg)...))
+	createMsg := fmt.Sprintf("User with id %d have been created", user.id)
+	user.conn.Write(systemMsg.setHeaderS(createMsg))
+	return user, nil
 }
 
-func (s *Server) deleteUser(id int) error {
+func (s *server) deleteUser(id int) error {
 	s.usersMux.Lock()
 	defer s.usersMux.Unlock()
 
@@ -87,11 +87,11 @@ func (s *Server) deleteUser(id int) error {
 	}
 
 	if user.currChat != nil {
-		user.currChat.DeleteUser(id)
+		user.currChat.deleteUser(id)
 	}
 	delete(s.users, id)
-	user.Close()
+	user.conn.Close()
 
-	fmt.Printf("Delete user: %d (%v)\n", id, user.RemoteAddr())
+	log.Printf("Delete user: %d (%v)\n", id, user.conn.RemoteAddr())
 	return nil
 }
