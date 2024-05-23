@@ -15,7 +15,6 @@ const (
 	Blue     Color = "\x1b[34m"
 	Magenta  Color = "\x1b[35m"
 	Cyan     Color = "\x1b[36m"
-	White    Color = "\x1b[37m"
 	GrayS    Color = "\x1b[90m"
 	RedS     Color = "\x1b[91m"
 	GreenS   Color = "\x1b[92m"
@@ -26,7 +25,7 @@ const (
 	WhiteS   Color = "\x1b[97m"
 )
 
-var AllColors []Color = []Color{Red, RedS, Green, GreenS, Yellow, YellowS, Blue, BlueS, Magenta, MagentaS, Cyan, CyanS, White, WhiteS, GrayS}
+var AllColors []Color = []Color{Red, RedS, Green, GreenS, Yellow, YellowS, Blue, BlueS, Magenta, MagentaS, Cyan, CyanS, WhiteS, GrayS}
 
 func Clear() {
 	fmt.Print("\x1b[H\x1b[J")

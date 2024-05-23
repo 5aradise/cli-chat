@@ -19,7 +19,11 @@ func (c *client) chatMsg(args []byte) {
 }
 
 func (c *client) userMsg(args []byte) {
-	c.printf(c.formatUserMsg(args))
+	msg, err := c.formatUserMsg(args)
+	if err != nil {
+		return
+	}
+	c.printf(msg)
 }
 
 func (c *client) chatConnResp(args []byte) {

@@ -3,8 +3,6 @@ package client
 import (
 	"errors"
 	"strings"
-
-	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
 func (c *client) processReq(input string) error {
@@ -30,19 +28,6 @@ func (c *client) processReq(input string) error {
 		return nil
 	}
 	return c.sendMsg(input)
-}
-
-func (c *client) sendMsg(msg string) error {
-	if !c.isInChat {
-		return errors.New("you are not connected to any chat")
-	}
-
-	c.printf(cli.Colorize("You: "+msg, cli.WhiteS))
-
-	req := userMsg.setHeaderS(msg)
-
-	_, err := c.Write(req)
-	return err
 }
 
 func (c *client) processResp(b []byte) {

@@ -3,7 +3,10 @@ package chat
 import (
 	"errors"
 	"strconv"
+	"unicode/utf8"
 )
+
+const maxMsgLen = 118
 
 var commands map[header]func(*server, *user, []byte) error = map[header]func(*server, *user, []byte) error{
 	userMsg: (*server).msgToChat,
@@ -14,6 +17,9 @@ var commands map[header]func(*server, *user, []byte) error = map[header]func(*se
 
 func (s *server) msgToChat(user *user, args []byte) error {
 	if user.currChat == nil {
+		return errors.New("your message is too long")
+	}
+	if utf8.RuneCountInString(string(args)) > maxMsgLen {
 		return errors.New("you are not connected to any chat")
 	}
 	user.currChat.writeUserMsg(user, args)

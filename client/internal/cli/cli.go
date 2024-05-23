@@ -3,9 +3,14 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 )
 
-const InputLn = 29
+const (
+	InputRow    = 29
+	MaxInputLen = 118
+)
 
 func SaveCursor() {
 	fmt.Print("\x1b7")
@@ -24,7 +29,7 @@ func MoveTo(row int, column ...int) {
 }
 
 func MoveToInput() {
-	MoveTo(InputLn, 2)
+	MoveTo(InputRow, 2)
 }
 
 func ClearConsole() {
@@ -36,16 +41,16 @@ func ClearConsole() {
 
 func PrintInputFrame() {
 	SaveCursor()
-	MoveTo(InputLn - 1)
-	fmt.Print("---------------------------------------------------------------------------------------------------------\n")
-	fmt.Print("|                                                                                                       |\n")
-	fmt.Print("---------------------------------------------------------------------------------------------------------")
+	MoveTo(InputRow - 1)
+	fmt.Println(strings.Repeat("-", MaxInputLen+2))
+	fmt.Println("|" + strings.Repeat(" ", MaxInputLen) + "|")
+	fmt.Print(strings.Repeat("-", MaxInputLen+2))
 	RestoreCursor()
 }
 
 func SafePrintf(printLn *int, format string, a ...any) {
 	SaveCursor()
-	if *printLn == InputLn-1 {
+	if *printLn == InputRow-1 {
 		ClearConsole()
 		PrintInputFrame()
 		*printLn = 1
@@ -56,11 +61,23 @@ func SafePrintf(printLn *int, format string, a ...any) {
 	RestoreCursor()
 }
 
-func Scan(scanner *bufio.Scanner) string {
+func Scan(scanner *bufio.Scanner) (string, int) {
 	scanner.Scan()
+	input := scanner.Text()
+	len := utf8.RuneCountInString(input)
+	if len <= MaxInputLen {
+		MoveToInput()
+		fmt.Print("\x1b[0J")
+		fmt.Println(strings.Repeat(" ", MaxInputLen) + "|")
+	} else {
+		overflow := len / MaxInputLen
+		MoveTo(InputRow - overflow-1)
+		fmt.Print("\x1b[0J")
+		MoveTo(InputRow - 1)
+		fmt.Println(strings.Repeat("-", MaxInputLen+2))
+		fmt.Println("|" + strings.Repeat(" ", MaxInputLen) + "|")
+	}
+	fmt.Print(strings.Repeat("-", MaxInputLen+2))
 	MoveToInput()
-	fmt.Print("\x1b[K")
-	fmt.Print("                                                                                                       |")
-	MoveToInput()
-	return scanner.Text()
+	return input, len
 }

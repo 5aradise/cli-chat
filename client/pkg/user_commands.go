@@ -3,8 +3,6 @@ package client
 import (
 	"errors"
 	"strconv"
-
-	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
 var userCommands map[string]func(*client, []string) error = map[string]func(*client, []string) error{
@@ -55,11 +53,24 @@ func (c *client) chatConnReq(args []string) error {
 
 func (c *client) chatExitReq(args []string) error {
 	if !c.isInChat {
-		c.printf(cli.Colorize("System: you are not in the chat", cli.RedS))
+		c.printf(formatSystemMsg("you are not in the chat"))
 		return nil
 	}
 
 	req := exit.setHeaderB([]byte{0})
+
+	_, err := c.Write(req)
+	return err
+}
+
+func (c *client) sendMsg(msg string) error {
+	if !c.isInChat {
+		return errors.New("you are not connected to any chat")
+	}
+
+	c.printf(formatClientMsg(msg))
+
+	req := userMsg.setHeaderS(msg)
 
 	_, err := c.Write(req)
 	return err

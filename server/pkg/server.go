@@ -7,6 +7,8 @@ import (
 	"sync"
 )
 
+const bufferSize = 512
+
 type server struct {
 	net.Listener
 	chats    map[int]*chat
@@ -64,7 +66,7 @@ func (s *server) authUser(conn net.Conn) (*user, error) {
 		return nil, err
 	}
 
-	buf := make([]byte, 1024)
+	buf := make([]byte, bufferSize)
 	l, err := conn.Read(buf)
 	if err != nil {
 		return nil, err

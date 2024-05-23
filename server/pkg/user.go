@@ -33,7 +33,7 @@ func (s *server) newUser(name string, conn net.Conn) *user {
 }
 
 func (u *user) listenConn(s *server) {
-	buf := make([]byte, 1024)
+	buf := make([]byte, bufferSize)
 	for {
 		l, err := u.conn.Read(buf)
 		if err != nil {
