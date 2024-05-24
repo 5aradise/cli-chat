@@ -8,13 +8,20 @@ import (
 
 type chat struct {
 	id    int
+	c     chan *message
 	users map[int]*user
 	mux   sync.RWMutex
+}
+
+type message struct {
+	sender *user
+	text   []byte
 }
 
 func (s *server) newChat(id int) *chat {
 	chat := &chat{
 		id:    id,
+		c:     make(chan *message, 16),
 		users: make(map[int]*user),
 		mux:   sync.RWMutex{},
 	}
@@ -22,6 +29,8 @@ func (s *server) newChat(id int) *chat {
 	s.chatsMux.Lock()
 	s.chats[id] = chat
 	s.chatsMux.Unlock()
+
+	go chat.broadcast()
 
 	log.Printf("New chat: %d\n", id)
 
@@ -63,19 +72,19 @@ func (ch *chat) chatCall(msg string) {
 	}
 }
 
-func (ch *chat) writeUserMsg(src *user, msg []byte) {
+func (ch *chat) broadcast() {
 	const userMsgDiv byte = 0x00
+	for msg := range ch.c {
+		toSend := append([]byte(msg.sender.name), userMsgDiv)
+		toSend = append(toSend, msg.text...)
+		toSend = userMsg.setHeaderB(toSend)
 
-	toSend := append([]byte(src.name), userMsgDiv)
-	toSend = append(toSend, msg...)
-	toSend = userMsg.setHeaderB(toSend)
-
-	ch.mux.RLock()
-	defer ch.mux.RUnlock()
-
-	for _, dst := range ch.users {
-		if dst != src {
-			dst.conn.Write(toSend)
+		ch.mux.RLock()
+		for _, dst := range ch.users {
+			if dst != msg.sender {
+				dst.conn.Write(toSend)
+			}
 		}
+		ch.mux.RUnlock()
 	}
 }

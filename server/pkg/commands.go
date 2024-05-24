@@ -22,7 +22,7 @@ func (s *server) msgToChat(user *user, args []byte) error {
 	if utf8.RuneCountInString(string(args)) > maxMsgLen {
 		return errors.New("you are not connected to any chat")
 	}
-	user.currChat.writeUserMsg(user, args)
+	user.currChat.c <- &message{user, args}
 
 	return nil
 }
