@@ -55,7 +55,7 @@ func (c *client) authClient(scanner *bufio.Scanner) {
 			continue
 		}
 		c.write(authAcc, []byte(input))
-		
+
 		head, body := c.read()
 		if head == authAcc {
 			c.printf(formatSystemMsg("User with id " + string(body) + " have been created"))

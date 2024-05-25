@@ -71,7 +71,7 @@ func Scan(scanner *bufio.Scanner) (string, int) {
 		fmt.Println(strings.Repeat(" ", MaxInputLen) + "|")
 	} else {
 		overflow := len / MaxInputLen
-		MoveTo(InputRow - overflow-1)
+		MoveTo(InputRow - overflow - 1)
 		fmt.Print("\x1b[0J")
 		MoveTo(InputRow - 1)
 		fmt.Println(strings.Repeat("-", MaxInputLen+2))

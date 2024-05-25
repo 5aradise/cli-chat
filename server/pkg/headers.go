@@ -3,7 +3,7 @@ package chat
 type header byte
 
 const (
-	systemMsg header = iota
+	systemMsg header = iota + 1
 	chatMsg
 	userMsg
 	create
