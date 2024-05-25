@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	client "github.com/5aradise/cli-chat/client/pkg"
 )
 
 func main() {
-	defer fmt.Scanln()
-
 	host := os.Getenv("HOST")
 	if host == "" {
 		host = "127.0.0.1"
@@ -19,7 +18,7 @@ func main() {
 		port = "8080"
 	}
 
-	client, err := client.New(host + ":" + port)
+	client, err := client.New(net.JoinHostPort(host, port))
 	if err != nil {
 		fmt.Println(err)
 		return

@@ -2,66 +2,78 @@ package client
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
-const bufferSize = 512
+const (
+	bufferSize     = 256
+	maxUsernameLen = 10
+	maxMsgLen      = 106
+)
 
 type client struct {
-	net.Conn
+	conn       net.Conn
+	readBuf    []byte
 	printLn    *int
 	isInChat   bool
 	chatColors map[string]cli.Color
 }
 
 func New(address string) (*client, error) {
-	conn, err := net.Dial("tcp", address)
+	conn, err := net.Dial("tcp4", address)
 	if err != nil {
 		return nil, err
 	}
 	printLn := 1
-	return &client{conn, &printLn, false, nil}, nil
+	readBuf := make([]byte, bufferSize)
+	return &client{conn, readBuf, &printLn, false, nil}, nil
 }
 
 func (c *client) Run() {
 	c.updateScreen()
 
-	go c.listenClient()
-	c.listenServer()
+	scanner := bufio.NewScanner(os.Stdin)
+	c.authClient(scanner)
+
+	go c.listenServer()
+	c.listenClient(scanner)
 }
 
-func (c *client) listenServer() {
-	buf := make([]byte, bufferSize)
-
+func (c *client) authClient(scanner *bufio.Scanner) {
+	c.printf(formatSystemMsg("Enter name"))
 	for {
-		l, err := c.Read(buf)
-		if err != nil {
+		input, inputLen := cli.Scan(scanner)
+		if inputLen == 0 {
+			continue
+		}
+		if inputLen > maxUsernameLen {
+			c.printf(formatSystemMsg("username is too long (maximum 10 characters)"))
+			continue
+		}
+		c.write(authAcc, []byte(input))
+		
+		head, body := c.read()
+		if head == authAcc {
+			c.printf(formatSystemMsg("User with id " + string(body) + " have been created"))
 			break
 		}
-		c.processResp(buf[:l])
+		c.printf(formatSystemMsg(body))
 	}
-
-	cli.ClearConsole()
-	c.printf(formatSystemMsg("you've been disconnected from the server"))
+	c.printf(formatSystemMsg("Type /help to see all available commands"))
 }
 
-func (c *client) listenClient() {
-	scanner := bufio.NewScanner(os.Stdin)
-	var input string
-	for len(input) == 0 {
-		input, _ = cli.Scan(scanner)
-	}
-	c.Write([]byte(input))
+func (c *client) listenClient(scanner *bufio.Scanner) {
 	for {
 		input, inputLen := cli.Scan(scanner)
 		if inputLen == 0 {
 			continue
 		}
 		if inputLen > cli.MaxInputLen {
-			c.printf(formatSystemMsg("your message is too long"))
+			c.printf(formatSystemMsg("your message is too long (maximum 106 characters)"))
 			continue
 		}
 		err := c.processReq(input)
@@ -69,6 +81,23 @@ func (c *client) listenClient() {
 			c.printf(formatSystemMsg(err.Error()))
 		}
 	}
+}
+
+func (c *client) listenServer() {
+	var head header
+	var body []byte
+	for {
+		head, body = c.read()
+		c.processResp(head, body)
+	}
+}
+
+func (c *client) shutDown(msg string) {
+	c.conn.Close()
+	cli.ClearConsole()
+	fmt.Println(msg)
+	fmt.Scanln()
+	os.Exit(0)
 }
 
 func (c *client) updateScreen() {
@@ -80,4 +109,19 @@ func (c *client) updateScreen() {
 
 func (c *client) printf(format string, a ...any) {
 	cli.SafePrintf(c.printLn, format, a...)
+}
+
+func (c *client) write(h header, b []byte) {
+	_, err := c.conn.Write(h.setHeader(b))
+	if err != nil {
+		c.shutDown("you've been disconnected from the server")
+	}
+}
+
+func (c *client) read() (header, []byte) {
+	l, err := c.conn.Read(c.readBuf)
+	if err != nil {
+		c.shutDown("you've been disconnected from the server")
+	}
+	return getHeader(c.readBuf[:l])
 }

@@ -9,22 +9,13 @@ const (
 	create
 	connect
 	exit
+	authAcc
 )
 
-func (h header) setHeaderB(body []byte) []byte {
-	return append([]byte{byte(h)}, body...)
+func (h header) setHeader(body []byte) []byte {
+	return append(body, byte(h))
 }
 
-func (h header) setHeaderS(body string) []byte {
-	return append([]byte{byte(h)}, body...)
+func getHeader(element []byte) (header, []byte) {
+	return header(element[len(element)-1]), element[:len(element)-1]
 }
-
-// func (h header) setHeader(body any) []byte {
-// 	switch bodyT := body.(type) {
-// 	case []byte:
-// 		return append([]byte{byte(h)}, bodyT...)
-// 	case string:
-// 		return append([]byte{byte(h)}, bodyT...)
-// 	}
-// 	return nil
-// }

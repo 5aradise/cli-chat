@@ -6,8 +6,6 @@ import (
 	"unicode/utf8"
 )
 
-const maxMsgLen = 118
-
 var commands map[header]func(*server, *user, []byte) error = map[header]func(*server, *user, []byte) error{
 	userMsg: (*server).msgToChat,
 	create:  (*server).createChat,
@@ -17,10 +15,10 @@ var commands map[header]func(*server, *user, []byte) error = map[header]func(*se
 
 func (s *server) msgToChat(user *user, args []byte) error {
 	if user.currChat == nil {
-		return errors.New("your message is too long")
-	}
-	if utf8.RuneCountInString(string(args)) > maxMsgLen {
 		return errors.New("you are not connected to any chat")
+	}
+	if utf8.RuneCount(args) > maxMsgLen {
+		return errors.New("your message is too long (maximum 106 characters)")
 	}
 	user.currChat.c <- &message{user, args}
 
@@ -50,7 +48,7 @@ func (s *server) createChat(user *user, args []byte) error {
 		return err
 	}
 
-	user.conn.Write(connect.setHeaderB([]byte{0}))
+	user.write(connect, nil)
 	return nil
 }
 
@@ -76,7 +74,7 @@ func (s *server) connChat(user *user, args []byte) error {
 		return err
 	}
 
-	user.conn.Write(connect.setHeaderB([]byte{0}))
+	user.write(connect, nil)
 	return nil
 }
 
@@ -87,6 +85,6 @@ func (s *server) exitChat(user *user, args []byte) error {
 
 	user.currChat.deleteUser(user.id)
 
-	user.conn.Write(exit.setHeaderB([]byte{0}))
+	user.write(exit, nil)
 	return nil
 }

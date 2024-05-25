@@ -4,10 +4,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"sync"
+	"unicode/utf8"
 )
 
-const bufferSize = 512
+// TODO Update write with headers
+
+const (
+	bufferSize     = 256
+	maxUsernameLen = 10
+	maxMsgLen      = 106
+)
 
 type server struct {
 	net.Listener
@@ -23,7 +31,7 @@ func New(port string) (*server, error) {
 		host = "127.0.0.1"
 	}
 
-	l, err := net.Listen("tcp", host+":"+port)
+	l, err := net.Listen("tcp4", net.JoinHostPort(host, port))
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +60,7 @@ func (s *server) Run() {
 		go func() {
 			user, err := s.authUser(conn)
 			if err != nil {
+				log.Println(err)
 				return
 			}
 			user.listenConn(s)
@@ -61,21 +70,41 @@ func (s *server) Run() {
 }
 
 func (s *server) authUser(conn net.Conn) (*user, error) {
-	_, err := conn.Write(systemMsg.setHeaderS("Enter name"))
-	if err != nil {
-		return nil, err
-	}
-
 	buf := make([]byte, bufferSize)
-	l, err := conn.Read(buf)
+	var head header
+	var username []byte
+	for {
+		l, err := conn.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+
+		head, username = getHeader(buf[:l])
+		if head != authAcc {
+			_, err = conn.Write(authRej.setHeader([]byte("invalid request")))
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if utf8.RuneCount(username) > maxUsernameLen {
+			_, err = conn.Write(authRej.setHeader([]byte("username is too long (maximum 10 characters)")))
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		break
+	}
+
+	user := s.newUser(string(username), conn)
+	_, err := conn.Write(authAcc.setHeader([]byte(strconv.Itoa(user.id))))
 	if err != nil {
 		return nil, err
 	}
 
-	user := s.newUser(string(buf[:l]), conn)
-
-	createMsg := fmt.Sprintf("User with id %d have been created", user.id)
-	user.conn.Write(systemMsg.setHeaderS(createMsg))
 	return user, nil
 }
 

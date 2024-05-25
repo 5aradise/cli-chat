@@ -3,9 +3,13 @@ package client
 import (
 	"errors"
 	"strconv"
+	"unicode/utf8"
+
+	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
 var userCommands map[string]func(*client, []string) error = map[string]func(*client, []string) error{
+	"help":   (*client).helpReq,
 	"create": (*client).chatCreateReq,
 	"conn":   (*client).chatConnReq,
 	"exit":   (*client).chatExitReq,
@@ -25,10 +29,8 @@ func (c *client) chatCreateReq(args []string) error {
 		return errors.New("wrong command (must be int)")
 	}
 
-	req := create.setHeaderS(strconv.Itoa(chatId))
-
-	_, err = c.Write(req)
-	return err
+	c.write(create, []byte(strconv.Itoa(chatId)))
+	return nil
 }
 
 func (c *client) chatConnReq(args []string) error {
@@ -45,10 +47,8 @@ func (c *client) chatConnReq(args []string) error {
 		return errors.New("wrong command (must be int)")
 	}
 
-	req := connect.setHeaderS(strconv.Itoa(chatId))
-
-	_, err = c.Write(req)
-	return err
+	c.write(connect, []byte(strconv.Itoa(chatId)))
+	return nil
 }
 
 func (c *client) chatExitReq(args []string) error {
@@ -57,21 +57,26 @@ func (c *client) chatExitReq(args []string) error {
 		return nil
 	}
 
-	req := exit.setHeaderB([]byte{0})
+	c.write(exit, nil)
+	return nil
+}
 
-	_, err := c.Write(req)
-	return err
+func (c *client) helpReq(args []string) error {
+	c.printf(formatSystemMsg("create {chat id} - creates and connects to new chat room"))
+	c.printf(cli.Colorize("            conn {chat id}   - connects to chat room", cli.RedS))
+	c.printf(cli.Colorize("            exit             - exits current chat room", cli.RedS))
+	return nil
 }
 
 func (c *client) sendMsg(msg string) error {
 	if !c.isInChat {
 		return errors.New("you are not connected to any chat")
 	}
+	if utf8.RuneCountInString(msg) > maxMsgLen {
+		return errors.New("your message is too long (maximum 106 characters)")
+	}
 
+	c.write(userMsg, []byte(msg))
 	c.printf(formatClientMsg(msg))
-
-	req := userMsg.setHeaderS(msg)
-
-	_, err := c.Write(req)
-	return err
+	return nil
 }

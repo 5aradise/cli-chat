@@ -2,7 +2,9 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
@@ -21,37 +23,48 @@ func (c *client) formatUserMsg(b []byte) (string, error) {
 		return "", errors.New("invalid user message")
 	}
 
-	user, msg := string(b[:div]), string(b[div+1:])
+	user, msg := b[:div], b[div+1:]
 
-	userColor, ok := c.chatColors[user]
+	if !isValidUserMsg(user, msg) {
+		return "", errors.New("invalid user or message length")
+	}
+
+	userS, msgS := string(user), string(msg)
+
+	userColor, ok := c.chatColors[userS]
 	if !ok {
 		randColor := cli.RandColor()
 		for slices.Index(reservedColors, randColor) != -1 {
 			randColor = cli.RandColor()
 		}
-		c.chatColors[user] = randColor
+		c.chatColors[userS] = randColor
 		userColor = randColor
 	}
 
-	user = cli.Colorize(user, userColor)
+	userS = fmt.Sprintf("%-10s", userS)
+	userS = cli.Colorize(userS, userColor)
 
-	return user + ": " + msg, nil
+	return userS + ": " + msgS, nil
 }
 
 func formatSystemMsg(a any) string {
 	switch msg := a.(type) {
 	case string:
-		return cli.Colorize("System: "+msg, cli.RedS)
+		return cli.Colorize("System    : "+msg, cli.RedS)
 	case []byte:
-		return cli.Colorize("System: "+string(msg), cli.RedS)
+		return cli.Colorize("System    : "+string(msg), cli.RedS)
 	}
 	return ""
 }
 
 func formatChatMsg(b []byte) string {
-	return cli.Colorize("Chat: "+string(b), cli.Red)
+	return cli.Colorize("Chat      : "+string(b), cli.Red)
 }
 
 func formatClientMsg(s string) string {
-	return cli.Colorize("You: "+s, cli.WhiteS)
+	return cli.Colorize("You       : "+s, cli.WhiteS)
+}
+
+func isValidUserMsg(user, msg []byte) bool {
+	return utf8.RuneCount(user) <= maxUsernameLen && utf8.RuneCount(msg) <= maxMsgLen
 }

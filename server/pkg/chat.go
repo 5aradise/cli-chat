@@ -65,10 +65,8 @@ func (ch *chat) chatCall(msg string) {
 	ch.mux.RLock()
 	defer ch.mux.RUnlock()
 
-	toSend := chatMsg.setHeaderS(msg)
-
 	for _, dst := range ch.users {
-		dst.conn.Write(toSend)
+		dst.write(chatMsg, []byte(msg))
 	}
 }
 
@@ -77,12 +75,11 @@ func (ch *chat) broadcast() {
 	for msg := range ch.c {
 		toSend := append([]byte(msg.sender.name), userMsgDiv)
 		toSend = append(toSend, msg.text...)
-		toSend = userMsg.setHeaderB(toSend)
 
 		ch.mux.RLock()
 		for _, dst := range ch.users {
 			if dst != msg.sender {
-				dst.conn.Write(toSend)
+				dst.write(userMsg, toSend)
 			}
 		}
 		ch.mux.RUnlock()

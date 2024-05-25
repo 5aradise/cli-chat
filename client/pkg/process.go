@@ -30,8 +30,10 @@ func (c *client) processReq(input string) error {
 	return c.sendMsg(input)
 }
 
-func (c *client) processResp(b []byte) {
-	header, args := header(b[0]), b[1:]
-	command := serverCommands[header]
-	command(c, args)
+func (c *client) processResp(h header, b []byte) {
+	command, ok := serverCommands[h]
+	if !ok {
+		return
+	}
+	command(c, b)
 }

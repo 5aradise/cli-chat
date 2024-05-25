@@ -10,6 +10,7 @@ const CommandSignal = 0
 
 type user struct {
 	conn     net.Conn
+	readBuf  []byte
 	id       int
 	name     string
 	currChat *chat
@@ -18,6 +19,7 @@ type user struct {
 func (s *server) newUser(name string, conn net.Conn) *user {
 	u := &user{
 		conn:     conn,
+		readBuf:  make([]byte, bufferSize),
 		id:       rand.Intn(1000000),
 		name:     name,
 		currChat: nil,
@@ -33,27 +35,32 @@ func (s *server) newUser(name string, conn net.Conn) *user {
 }
 
 func (u *user) listenConn(s *server) {
-	buf := make([]byte, bufferSize)
 	for {
-		l, err := u.conn.Read(buf)
-		if err != nil {
-			break
-		}
-
-		command, ok := commands[header(buf[0])]
+		head, body := u.read()
+		command, ok := commands[head]
 		if !ok {
-			u.writeSystemCall("unknown command")
+			u.write(systemMsg, []byte("unknown command"))
 			continue
 		}
 
-		err = command(s, u, buf[1:l])
+		err := command(s, u, body)
 		if err != nil {
-			u.writeSystemCall(err.Error())
+			u.write(systemMsg, []byte(err.Error()))
 		}
 	}
 }
 
-func (u *user) writeSystemCall(s string) error {
-	_, err := u.conn.Write(systemMsg.setHeaderS(s))
-	return err
+func (u *user) write(h header, b []byte) {
+	_, err := u.conn.Write(h.setHeader(b))
+	if err != nil {
+		panic("you've been disconnected from the server")
+	}
+}
+
+func (u *user) read() (header, []byte) {
+	l, err := u.conn.Read(u.readBuf)
+	if err != nil {
+		panic("you've been disconnected from the server")
+	}
+	return getHeader(u.readBuf[:l])
 }
