@@ -18,6 +18,11 @@ type message struct {
 	text   []byte
 }
 
+var (
+	addMsg    = []byte(" has been added")
+	deleteMsg = []byte(" left the chat room")
+)
+
 func (s *server) newChat(id int) *chat {
 	chat := &chat{
 		id:    id,
@@ -47,7 +52,7 @@ func (ch *chat) addUser(u *user) error {
 	u.currChat = ch
 	ch.mux.Unlock()
 
-	ch.chatCall(u.name + " has been added")
+	ch.chatCall(append(u.name, addMsg...))
 	return nil
 }
 
@@ -58,22 +63,22 @@ func (ch *chat) deleteUser(id int) {
 	ch.mux.Unlock()
 	u.currChat = nil
 
-	ch.chatCall(u.name + " left the chat room")
+	ch.chatCall(append(u.name, deleteMsg...))
 }
 
-func (ch *chat) chatCall(msg string) {
+func (ch *chat) chatCall(msg []byte) {
 	ch.mux.RLock()
 	defer ch.mux.RUnlock()
 
 	for _, dst := range ch.users {
-		dst.write(chatMsg, []byte(msg))
+		dst.write(chatMsg, msg)
 	}
 }
 
 func (ch *chat) broadcast() {
 	const userMsgDiv byte = 0x00
 	for msg := range ch.c {
-		toSend := append([]byte(msg.sender.name), userMsgDiv)
+		toSend := append(msg.sender.name, userMsgDiv)
 		toSend = append(toSend, msg.text...)
 
 		ch.mux.RLock()

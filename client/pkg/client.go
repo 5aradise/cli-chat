@@ -43,29 +43,6 @@ func (c *client) Run() {
 	c.listenClient(scanner)
 }
 
-func (c *client) authClient(scanner *bufio.Scanner) {
-	c.printf(formatSystemMsg("Enter name"))
-	for {
-		input, inputLen := cli.Scan(scanner)
-		if inputLen == 0 {
-			continue
-		}
-		if inputLen > maxUsernameLen {
-			c.printf(formatSystemMsg("username is too long (maximum 10 characters)"))
-			continue
-		}
-		c.write(authAcc, []byte(input))
-
-		head, body := c.read()
-		if head == authAcc {
-			c.printf(formatSystemMsg("User with id " + string(body) + " have been created"))
-			break
-		}
-		c.printf(formatSystemMsg(body))
-	}
-	c.printf(formatSystemMsg("Type /help to see all available commands"))
-}
-
 func (c *client) listenClient(scanner *bufio.Scanner) {
 	for {
 		input, inputLen := cli.Scan(scanner)

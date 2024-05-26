@@ -4,12 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"sync"
-	"unicode/utf8"
 )
-
-// TODO Update write with headers
 
 const (
 	bufferSize     = 256
@@ -67,45 +63,6 @@ func (s *server) Run() {
 			s.deleteUser(user.id)
 		}()
 	}
-}
-
-func (s *server) authUser(conn net.Conn) (*user, error) {
-	buf := make([]byte, bufferSize)
-	var head header
-	var username []byte
-	for {
-		l, err := conn.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-
-		head, username = getHeader(buf[:l])
-		if head != authAcc {
-			_, err = conn.Write(authRej.setHeader([]byte("invalid request")))
-			if err != nil {
-				return nil, err
-			}
-			continue
-		}
-
-		if utf8.RuneCount(username) > maxUsernameLen {
-			_, err = conn.Write(authRej.setHeader([]byte("username is too long (maximum 10 characters)")))
-			if err != nil {
-				return nil, err
-			}
-			continue
-		}
-
-		break
-	}
-
-	user := s.newUser(string(username), conn)
-	_, err := conn.Write(authAcc.setHeader([]byte(strconv.Itoa(user.id))))
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
 }
 
 func (s *server) deleteUser(id int) error {

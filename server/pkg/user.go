@@ -9,17 +9,17 @@ import (
 const CommandSignal = 0
 
 type user struct {
-	isRun    bool
+	isActive bool
 	conn     net.Conn
 	readBuf  []byte
 	id       int
-	name     string
+	name     []byte
 	currChat *chat
 }
 
-func (s *server) newUser(name string, conn net.Conn) *user {
+func (s *server) newUser(name []byte, conn net.Conn) *user {
 	u := &user{
-		isRun:    true,
+		isActive: true,
 		conn:     conn,
 		readBuf:  make([]byte, bufferSize),
 		id:       rand.Intn(1000000),
@@ -37,7 +37,7 @@ func (s *server) newUser(name string, conn net.Conn) *user {
 }
 
 func (u *user) listenConn(s *server) {
-	for u.isRun {
+	for u.isActive {
 		head, body := u.read()
 		command, ok := commands[head]
 		if !ok {
@@ -55,14 +55,14 @@ func (u *user) listenConn(s *server) {
 func (u *user) write(h header, b []byte) {
 	_, err := u.conn.Write(h.setHeader(b))
 	if err != nil {
-		u.isRun = false
+		u.isActive = false
 	}
 }
 
 func (u *user) read() (header, []byte) {
 	l, err := u.conn.Read(u.readBuf)
 	if err != nil {
-		u.isRun = false
+		u.isActive = false
 		return 0, nil
 	}
 	return getHeader(u.readBuf[:l])
