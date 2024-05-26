@@ -2,8 +2,6 @@ package client
 
 import (
 	"errors"
-	"strconv"
-	"unicode/utf8"
 
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
@@ -24,12 +22,14 @@ func (c *client) chatCreateReq(args []string) error {
 		return errors.New("to many arguments")
 	}
 
-	chatId, err := strconv.Atoi(args[0])
-	if err != nil {
-		return errors.New("wrong command (must be int)")
+	chatName := args[0]
+
+	isValid, reas := isValidChatName([]byte(chatName))
+	if !isValid {
+		return errors.New(reas)
 	}
 
-	c.write(create, []byte(strconv.Itoa(chatId)))
+	c.write(createChat, []byte(chatName))
 	return nil
 }
 
@@ -42,12 +42,14 @@ func (c *client) chatConnReq(args []string) error {
 		return errors.New("to many arguments")
 	}
 
-	chatId, err := strconv.Atoi(args[0])
-	if err != nil {
-		return errors.New("wrong command (must be int)")
+	chatName := args[0]
+
+	isValid, reas := isValidChatName([]byte(chatName))
+	if !isValid {
+		return errors.New(reas)
 	}
 
-	c.write(connect, []byte(strconv.Itoa(chatId)))
+	c.write(connectChat, []byte(chatName))
 	return nil
 }
 
@@ -57,14 +59,14 @@ func (c *client) chatExitReq(args []string) error {
 		return nil
 	}
 
-	c.write(exit, nil)
+	c.write(exitChat, nil)
 	return nil
 }
 
 func (c *client) helpReq(args []string) error {
-	c.printf(formatSystemMsg("create {chat id} - creates and connects to new chat room"))
-	c.printf(cli.Colorize("            conn {chat id}   - connects to chat room", cli.RedS))
-	c.printf(cli.Colorize("            exit             - exits current chat room", cli.RedS))
+	c.printf(formatSystemMsg("create {chat name} - creates and connects to new chat room"))
+	c.printf(cli.Colorize("            conn {chat name}   - connects to chat room", cli.RedS))
+	c.printf(cli.Colorize("            exit               - exits current chat room", cli.RedS))
 	return nil
 }
 
@@ -72,8 +74,9 @@ func (c *client) sendMsg(msg string) error {
 	if !c.isInChat {
 		return errors.New("you are not connected to any chat")
 	}
-	if utf8.RuneCountInString(msg) > maxMsgLen {
-		return errors.New("your message is too long (maximum 106 characters)")
+	isValid, reas := isValidMsg(msg)
+	if !isValid {
+		return errors.New(reas)
 	}
 
 	c.write(userMsg, []byte(msg))

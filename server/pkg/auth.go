@@ -2,19 +2,13 @@ package chat
 
 import (
 	"net"
-	"regexp"
-	"slices"
-	"strconv"
-	"unicode/utf8"
 )
-
-var latinAndCyrillicLetters = regexp.MustCompile("[A-Za-zА-яІіЇїЄє]")
-var reservedNames = [][]byte{[]byte("You"), []byte("Chat"), []byte("System")}
 
 func (s *server) authUser(conn net.Conn) (*user, error) {
 	buf := make([]byte, bufferSize)
 	var head header
 	var username []byte
+	var user *user
 	for {
 		l, err := conn.Read(buf)
 		if err != nil {
@@ -30,9 +24,9 @@ func (s *server) authUser(conn net.Conn) (*user, error) {
 			continue
 		}
 
-		isValid, reas := isValidUsername(username)
-		if !isValid {
-			_, err = conn.Write(authRej.setHeader([]byte(reas)))
+		user, err = s.newUser(string(username), conn)
+		if err != nil {
+			_, err = conn.Write(authRej.setHeader([]byte(err.Error())))
 			if err != nil {
 				return nil, err
 			}
@@ -42,33 +36,10 @@ func (s *server) authUser(conn net.Conn) (*user, error) {
 		break
 	}
 
-	user := s.newUser(username, conn)
-	_, err := conn.Write(authAcc.setHeader([]byte(strconv.Itoa(user.id))))
+	_, err := conn.Write(authAcc.setHeader([]byte(user.name)))
 	if err != nil {
 		return nil, err
 	}
 
 	return user, nil
-}
-
-func isValidUsername(name []byte) (bool, string) {
-	if utf8.RuneCount(name) > maxUsernameLen {
-		return false, "username is too long (maximum 10 characters)"
-	}
-
-	if slices.Contains(name, 0x20) {
-		return false, "username mustn't contain spaces"
-	}
-
-	for _, reservedName := range reservedNames {
-		if slices.Equal(reservedName, name) {
-			return false, "username is equal to reserved name"
-		}
-	}
-
-	if !latinAndCyrillicLetters.Match(name) {
-		return false, "username must contain at least 1 letter"
-	}
-
-	return true, ""
 }

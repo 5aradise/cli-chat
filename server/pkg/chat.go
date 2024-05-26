@@ -7,9 +7,9 @@ import (
 )
 
 type chat struct {
-	id    int
+	name  string
 	c     chan *message
-	users map[int]*user
+	users map[string]*user
 	mux   sync.RWMutex
 }
 
@@ -23,47 +23,57 @@ var (
 	deleteMsg = []byte(" left the chat room")
 )
 
-func (s *server) newChat(id int) *chat {
-	chat := &chat{
-		id:    id,
-		c:     make(chan *message, 16),
-		users: make(map[int]*user),
-		mux:   sync.RWMutex{},
+func (s *server) newChat(name string) (*chat, error) {
+	isValid, reas := isValidChatName(name)
+	if !isValid {
+		return nil, errors.New(reas)
 	}
 
 	s.chatsMux.Lock()
-	s.chats[id] = chat
+	if _, ok := s.chats[name]; ok {
+		s.chatsMux.Unlock()
+		return nil, errors.New("chat with this name already exist")
+	}
+
+	chat := &chat{
+		name:  name,
+		c:     make(chan *message, 16),
+		users: make(map[string]*user),
+		mux:   sync.RWMutex{},
+	}
+
+	s.chats[name] = chat
 	s.chatsMux.Unlock()
 
 	go chat.broadcast()
 
-	log.Printf("New chat: %d\n", id)
+	log.Printf("New chat: %s\n", name)
 
-	return chat
+	return chat, nil
 }
 
 func (ch *chat) addUser(u *user) error {
 	ch.mux.Lock()
-	if _, ok := ch.users[u.id]; ok {
+	if _, ok := ch.users[u.name]; ok {
 		ch.mux.Unlock()
-		return errors.New("user with this id already exist")
+		return errors.New("user with this id already in chat")
 	}
-	ch.users[u.id] = u
-	u.currChat = ch
+	ch.users[u.name] = u
 	ch.mux.Unlock()
+	u.currChat = ch
 
-	ch.chatCall(append(u.name, addMsg...))
+	ch.chatCall(append([]byte(u.name), addMsg...))
 	return nil
 }
 
-func (ch *chat) deleteUser(id int) {
+func (ch *chat) deleteUser(name string) {
 	ch.mux.Lock()
-	u := ch.users[id]
-	delete(ch.users, id)
+	u := ch.users[name]
+	delete(ch.users, name)
 	ch.mux.Unlock()
 	u.currChat = nil
 
-	ch.chatCall(append(u.name, deleteMsg...))
+	ch.chatCall(append([]byte(u.name), deleteMsg...))
 }
 
 func (ch *chat) chatCall(msg []byte) {
@@ -78,7 +88,7 @@ func (ch *chat) chatCall(msg []byte) {
 func (ch *chat) broadcast() {
 	const userMsgDiv byte = 0x00
 	for msg := range ch.c {
-		toSend := append(msg.sender.name, userMsgDiv)
+		toSend := append([]byte(msg.sender.name), userMsgDiv)
 		toSend = append(toSend, msg.text...)
 
 		ch.mux.RLock()

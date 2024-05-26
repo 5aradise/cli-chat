@@ -9,11 +9,7 @@ import (
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
-const (
-	bufferSize     = 256
-	maxUsernameLen = 10
-	maxMsgLen      = 106
-)
+const bufferSize = 256
 
 type client struct {
 	conn       net.Conn

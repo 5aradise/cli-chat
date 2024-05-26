@@ -8,16 +8,14 @@ import (
 )
 
 const (
-	bufferSize     = 256
-	maxUsernameLen = 10
-	maxMsgLen      = 106
+	bufferSize = 256
 )
 
 type server struct {
 	net.Listener
-	chats    map[int]*chat
+	chats    map[string]*chat
 	chatsMux sync.RWMutex
-	users    map[int]*user
+	users    map[string]*user
 	usersMux sync.RWMutex
 }
 
@@ -33,9 +31,9 @@ func New(port string) (*server, error) {
 	}
 	return &server{
 		Listener: l,
-		chats:    make(map[int]*chat),
+		chats:    make(map[string]*chat),
 		chatsMux: sync.RWMutex{},
-		users:    make(map[int]*user),
+		users:    make(map[string]*user),
 		usersMux: sync.RWMutex{},
 	}, nil
 }
@@ -60,26 +58,26 @@ func (s *server) Run() {
 				return
 			}
 			user.listenConn(s)
-			s.deleteUser(user.id)
+			s.deleteUser(string(user.name))
 		}()
 	}
 }
 
-func (s *server) deleteUser(id int) error {
+func (s *server) deleteUser(name string) error {
 	s.usersMux.Lock()
 	defer s.usersMux.Unlock()
 
-	user, ok := s.users[id]
+	user, ok := s.users[name]
 	if !ok {
-		return fmt.Errorf("cannot find user with id: %d", id)
+		return fmt.Errorf("cannot find user with name: %s", name)
 	}
 
 	if user.currChat != nil {
-		user.currChat.deleteUser(id)
+		user.currChat.deleteUser(name)
 	}
-	delete(s.users, id)
+	delete(s.users, name)
 	user.conn.Close()
 
-	log.Printf("Delete user: %d (%v)\n", id, user.conn.RemoteAddr())
+	log.Printf("Delete user: %s (%v)\n", name, user.conn.RemoteAddr())
 	return nil
 }

@@ -1,8 +1,8 @@
 package chat
 
 import (
+	"errors"
 	"log"
-	"math/rand"
 	"net"
 )
 
@@ -12,28 +12,36 @@ type user struct {
 	isActive bool
 	conn     net.Conn
 	readBuf  []byte
-	id       int
-	name     []byte
+	name     string
 	currChat *chat
 }
 
-func (s *server) newUser(name []byte, conn net.Conn) *user {
+func (s *server) newUser(name string, conn net.Conn) (*user, error) {
+	isValid, reas := isValidUsername(name)
+	if !isValid {
+		return nil, errors.New(reas)
+	}
+
+	s.usersMux.Lock()
+	if _, ok := s.users[name]; ok {
+		s.usersMux.Unlock()
+		return nil, errors.New("user with this name already exist")
+	}
+
 	u := &user{
 		isActive: true,
 		conn:     conn,
 		readBuf:  make([]byte, bufferSize),
-		id:       rand.Intn(1000000),
 		name:     name,
 		currChat: nil,
 	}
 
-	s.usersMux.Lock()
-	s.users[u.id] = u
+	s.users[u.name] = u
 	s.usersMux.Unlock()
 
-	log.Printf("New user: %d (%v)\n", u.id, conn.RemoteAddr())
+	log.Printf("New user: %s (%v)\n", u.name, conn.RemoteAddr())
 
-	return u
+	return u, nil
 }
 
 func (u *user) listenConn(s *server) {

@@ -6,9 +6,9 @@ const (
 	systemMsg header = iota + 1
 	chatMsg
 	userMsg
-	create
-	connect
-	exit
+	createChat
+	connectChat
+	exitChat
 	authAcc
 )
 
