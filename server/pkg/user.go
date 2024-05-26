@@ -6,8 +6,6 @@ import (
 	"net"
 )
 
-const CommandSignal = 0
-
 type user struct {
 	isActive bool
 	conn     net.Conn

@@ -12,7 +12,7 @@ const (
 )
 
 type server struct {
-	net.Listener
+	listener net.Listener
 	chats    map[string]*chat
 	chatsMux sync.RWMutex
 	users    map[string]*user
@@ -30,7 +30,7 @@ func New(port string) (*server, error) {
 		return nil, err
 	}
 	return &server{
-		Listener: l,
+		listener: l,
 		chats:    make(map[string]*chat),
 		chatsMux: sync.RWMutex{},
 		users:    make(map[string]*user),
@@ -39,11 +39,11 @@ func New(port string) (*server, error) {
 }
 
 func (s *server) Run() {
-	defer s.Close()
+	defer s.listener.Close()
 
-	log.Println("Start listening on", s.Addr())
+	log.Println("Start listening on", s.listener.Addr())
 	for {
-		conn, err := s.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			log.Println(err)
 			continue
