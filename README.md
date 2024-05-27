@@ -9,6 +9,7 @@ This is a simple cli messaging application built with Go. Users can create rooms
 - Invite others by sharing the room name
 - Real-time messaging
 - Leave and join notifications
+- Kick other members and give them admin rights
 
 ## Requirements
 - Go 1.22
