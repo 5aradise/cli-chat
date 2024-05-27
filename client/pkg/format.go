@@ -50,10 +50,22 @@ func formatSystemMsg(a any) string {
 	return ""
 }
 
-func formatChatMsg(b []byte) string {
-	return cli.Colorize("Chat      : "+string(b), cli.RedS)
+func formatChatMsg(a any) string {
+	switch msg := a.(type) {
+	case string:
+		return cli.Colorize("Chat      : "+msg, cli.RedS)
+	case []byte:
+		return cli.Colorize("Chat      : "+string(msg), cli.RedS)
+	}
+	return ""
 }
 
-func formatClientMsg(s string) string {
-	return cli.Colorize("You       : "+s, cli.WhiteS)
+func formatClientMsg(a any) string {
+	switch msg := a.(type) {
+	case string:
+		return cli.Colorize("You       : "+msg, cli.WhiteS)
+	case []byte:
+		return cli.Colorize("You       : "+string(msg), cli.WhiteS)
+	}
+	return ""
 }

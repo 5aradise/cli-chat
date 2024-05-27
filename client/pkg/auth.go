@@ -14,7 +14,7 @@ func (c *client) authClient(scanner *bufio.Scanner) {
 			continue
 		}
 
-		isValid, reas := isValidUsername([]byte(username))
+		isValid, reas := isValidUsername(username)
 		if !isValid {
 			c.printf(formatSystemMsg(reas))
 			continue
@@ -22,11 +22,13 @@ func (c *client) authClient(scanner *bufio.Scanner) {
 
 		c.write(authAcc, []byte(username))
 		head, body := c.read()
-		if head == authAcc {
-			c.printf(formatSystemMsg("User with id " + string(body) + " have been created"))
-			break
+		if head != authAcc {
+			c.printf(formatSystemMsg(body))
+			continue
 		}
-		c.printf(formatSystemMsg(body))
+
+		c.printf(formatSystemMsg("User with name " + string(body) + " have been created"))
+		break
 	}
 	c.printf(formatSystemMsg("Type /help to see all available commands"))
 }

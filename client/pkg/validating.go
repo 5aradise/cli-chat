@@ -3,12 +3,13 @@ package client
 import (
 	"regexp"
 	"slices"
+	"strings"
 	"unicode/utf8"
 )
 
 var (
 	latinAndCyrillicLetters = regexp.MustCompile("[A-Za-zА-яІіЇїЄє]")
-	reservedNames           = [][]byte{[]byte("You"), []byte("Chat"), []byte("System")}
+	reservedNames           = []string{"You", "Chat", "System"}
 )
 
 const (
@@ -17,34 +18,36 @@ const (
 	maxMsgLen      = 106
 )
 
-func isValidUsername(name []byte) (bool, string) {
-	if utf8.RuneCount(name) > maxUsernameLen {
+func isValidUsername(name string) (bool, string) {
+	if utf8.RuneCountInString(name) > maxUsernameLen {
 		return false, "username is too long (maximum 10 characters)"
 	}
 
-	if slices.Contains(name, 0x20) {
+	if strings.Contains(name, " ") {
 		return false, "username mustn't contain spaces"
 	}
 
-	for _, reservedName := range reservedNames {
-		if slices.Equal(reservedName, name) {
-			return false, "username is equal to reserved name"
-		}
+	if slices.Contains(reservedNames, name) {
+		return false, "username is equal to reserved name"
 	}
 
-	if !latinAndCyrillicLetters.Match(name) {
+	if !latinAndCyrillicLetters.MatchString(name) {
 		return false, "username must contain at least 1 letter"
 	}
 
 	return true, ""
 }
 
-func isValidChatName(name []byte) (bool, string) {
-	if utf8.RuneCount(name) > maxChatNameLen {
+func isValidChatName(name string) (bool, string) {
+	if utf8.RuneCountInString(name) > maxChatNameLen {
 		return false, "username is too long (maximum 20 characters)"
 	}
 
-	if !latinAndCyrillicLetters.Match(name) {
+	if strings.Contains(name, " ") {
+		return false, "chat name mustn't contain spaces"
+	}
+
+	if !latinAndCyrillicLetters.MatchString(name) {
 		return false, "chat name must contain at least 1 letter"
 	}
 
