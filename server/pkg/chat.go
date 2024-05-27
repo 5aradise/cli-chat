@@ -4,14 +4,18 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 )
 
+const chatDeleteDelay = time.Minute
+
 type chat struct {
-	name  string
-	c     chan *message
-	users map[string]*user
-	mux   sync.RWMutex
-	admin *user
+	name        string
+	c           chan *message
+	users       map[string]*user
+	mux         sync.RWMutex
+	admin       *user
+	deleteTimer *time.Timer
 }
 
 type message struct {
@@ -37,17 +41,21 @@ func (s *server) newChat(name string) (*chat, error) {
 	}
 
 	chat := &chat{
-		name:  name,
-		c:     make(chan *message, 16),
-		users: make(map[string]*user),
-		mux:   sync.RWMutex{},
+		name:        name,
+		c:           make(chan *message, 16),
+		users:       make(map[string]*user),
+		mux:         sync.RWMutex{},
+		deleteTimer: time.NewTimer(chatDeleteDelay),
 	}
 
 	s.chats[name] = chat
 	s.chatsMux.Unlock()
 
 	go chat.broadcast()
-
+	go func() {
+		<-chat.deleteTimer.C
+		s.deleteChat(chat.name)
+	}()
 	return chat, nil
 }
 
@@ -71,6 +79,8 @@ func (ch *chat) addUser(u *user) error {
 		}
 	}
 
+	ch.deleteTimer.Stop()
+
 	return nil
 }
 
@@ -82,6 +92,9 @@ func (ch *chat) deleteUser(name string) error {
 		return errors.New("there is no user by that name in the chat room")
 	}
 	delete(ch.users, name)
+	if len(ch.users) == 0 {
+		ch.deleteTimer.Reset(chatDeleteDelay)
+	}
 	ch.mux.Unlock()
 
 	u.currChat = nil
