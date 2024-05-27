@@ -58,7 +58,10 @@ func (s *server) Run() {
 				return
 			}
 			user.listenConn(s)
-			s.deleteUser(string(user.name))
+			err = s.deleteUser(string(user.name))
+			if err != nil {
+				log.Println(err)
+			}
 		}()
 	}
 }
@@ -72,13 +75,19 @@ func (s *server) deleteUser(name string) error {
 		return fmt.Errorf("cannot find user with name: %s", name)
 	}
 
-	if user.currChat != nil {
-		user.currChat.deleteUser(name)
-	}
-	delete(s.users, name)
+	user.isActive = false
 	user.conn.Close()
+	delete(s.users, name)
 
-	log.Printf("Delete user: %s (%v)\n", name, user.conn.RemoteAddr())
+	if user.currChat != nil {
+		err := user.currChat.deleteUser(name)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Printf("Delete user: %s (%v)\n", user.name, user.conn.RemoteAddr())
+
 	return nil
 }
 
@@ -92,9 +101,15 @@ func (s *server) deleteChat(name string) error {
 	}
 
 	close(chat.c)
-	for member := range chat.users {
-		chat.deleteUser(member)
+	for memberName, member := range chat.users {
+		if member != chat.admin {
+			chat.deleteUser(memberName)
+		}
 	}
+	chat.deleteUser(chat.admin.name)
 	delete(s.chats, name)
+
+	log.Printf("Delete chat: %s\n", chat.name)
+
 	return nil
 }

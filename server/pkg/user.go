@@ -40,7 +40,7 @@ func (s *server) newUser(name string, conn net.Conn) (*user, error) {
 	s.users[u.name] = u
 	s.usersMux.Unlock()
 
-	log.Printf("New user: %s (%v)\n", u.name, conn.RemoteAddr())
+	log.Printf("New user: %s (%v)\n", u.name, u.conn.RemoteAddr())
 
 	return u, nil
 }

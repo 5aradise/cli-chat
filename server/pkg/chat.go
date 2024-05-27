@@ -23,9 +23,13 @@ type message struct {
 	text   []byte
 }
 
+const userMsgDiv byte = 0x00
+
 var (
 	addMsg    = []byte(" has been added")
 	deleteMsg = []byte(" left the chat room")
+	takeAdmin = []byte{0}
+	giveAdmin = []byte{1}
 )
 
 func (s *server) newChat(name string) (*chat, error) {
@@ -56,6 +60,9 @@ func (s *server) newChat(name string) (*chat, error) {
 		<-chat.deleteTimer.C
 		s.deleteChat(chat.name)
 	}()
+
+	log.Printf("New chat: %s\n", chat.name)
+
 	return chat, nil
 }
 
@@ -69,6 +76,8 @@ func (ch *chat) addUser(u *user) error {
 	u.currChat = ch
 	ch.mux.Unlock()
 
+	ch.deleteTimer.Stop()
+
 	u.write(connectChat, []byte(ch.name))
 	ch.chatCall(append([]byte(u.name), addMsg...))
 
@@ -78,9 +87,6 @@ func (ch *chat) addUser(u *user) error {
 			return err
 		}
 	}
-
-	ch.deleteTimer.Stop()
-
 	return nil
 }
 
@@ -151,17 +157,15 @@ func (ch *chat) setAdmin(name ...string) error {
 	}
 
 	if oldAdmin != nil {
-		oldAdmin.write(passAdmin, []byte{0})
+		oldAdmin.write(passAdmin, takeAdmin)
 	}
 	if ch.admin != nil {
-		ch.admin.write(passAdmin, []byte{1})
+		ch.admin.write(passAdmin, giveAdmin)
 	}
 	return nil
 }
 
 func (ch *chat) broadcast() {
-	log.Printf("New chat: %s\n", ch.name)
-	const userMsgDiv byte = 0x00
 	for msg := range ch.c {
 		toSend := append([]byte(msg.sender.name), userMsgDiv)
 		toSend = append(toSend, msg.text...)
@@ -174,5 +178,4 @@ func (ch *chat) broadcast() {
 		}
 		ch.mux.RUnlock()
 	}
-	log.Printf("Delete chat: %s\n", ch.name)
 }

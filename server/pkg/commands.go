@@ -8,10 +8,10 @@ var commands map[header]func(*server, *user, []byte) error = map[header]func(*se
 	userMsg:     (*server).msgToChat,
 	createChat:  (*server).createChat,
 	connectChat: (*server).connChat,
+	passAdmin:   (*server).passAdmin,
+	kickUser:    (*server).kickUser,
 	exitChat:    (*server).exitChat,
 	deleteChat:  (*server).deleteChatCommmand,
-	kickUser:  (*server).deleteUserFromChat,
-	passAdmin:   (*server).passAdmin,
 }
 
 func (s *server) msgToChat(user *user, args []byte) error {
@@ -56,15 +56,7 @@ func (s *server) connChat(user *user, args []byte) error {
 	return chat.addUser(user)
 }
 
-func (s *server) exitChat(user *user, args []byte) error {
-	if user.currChat == nil {
-		return errors.New("you are not in the chat")
-	}
-
-	return user.currChat.deleteUser(user.name)
-}
-
-func (s *server) deleteUserFromChat(user *user, args []byte) error {
+func (s *server) kickUser(user *user, args []byte) error {
 	if user.currChat == nil {
 		return errors.New("you are not in the chat")
 	}
@@ -77,16 +69,12 @@ func (s *server) deleteUserFromChat(user *user, args []byte) error {
 	return user.currChat.deleteUser(userToDelete)
 }
 
-func (s *server) deleteChatCommmand(user *user, args []byte) error {
+func (s *server) exitChat(user *user, args []byte) error {
 	if user.currChat == nil {
 		return errors.New("you are not in the chat")
 	}
 
-	if user != user.currChat.admin {
-		return errors.New("you do not have permission")
-	}
-
-	return s.deleteChat(user.currChat.name)
+	return user.currChat.deleteUser(user.name)
 }
 
 func (s *server) passAdmin(user *user, args []byte) error {
@@ -104,4 +92,16 @@ func (s *server) passAdmin(user *user, args []byte) error {
 
 	newAdmin := string(args)
 	return user.currChat.setAdmin(newAdmin)
+}
+
+func (s *server) deleteChatCommmand(user *user, args []byte) error {
+	if user.currChat == nil {
+		return errors.New("you are not in the chat")
+	}
+
+	if user != user.currChat.admin {
+		return errors.New("you do not have permission")
+	}
+
+	return s.deleteChat(user.currChat.name)
 }

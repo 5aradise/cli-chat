@@ -14,13 +14,13 @@ import (
 const bufferSize = 256
 
 type client struct {
-	conn       net.Conn
-	readBuf    []byte
-	respMux    sync.Mutex
-	isInChat   bool
-	isAdmin    bool
-	chatColors map[string]cli.Color
-	printLn    *int
+	conn        net.Conn
+	readBuf     []byte
+	respMux     sync.Mutex
+	isInChat    bool
+	isAdmin     bool
+	chatColors  map[string]cli.Color
+	currPrintLn *int
 }
 
 func New(address string) (*client, error) {
@@ -81,17 +81,6 @@ func (c *client) shutDown(msg string) {
 	os.Exit(0)
 }
 
-func (c *client) updateScreen() {
-	cli.ClearConsole()
-	cli.PrintInputFrame()
-	cli.MoveToInput()
-	*c.printLn = 1
-}
-
-func (c *client) printf(format string, a ...any) {
-	cli.SafePrintf(c.printLn, format, a...)
-}
-
 func (c *client) write(h header, b []byte) {
 	time.Sleep(time.Millisecond)
 	_, err := c.conn.Write(h.setHeader(b))
@@ -106,4 +95,15 @@ func (c *client) read() (header, []byte) {
 		c.shutDown("you've been disconnected from the server")
 	}
 	return getHeader(c.readBuf[:l])
+}
+
+func (c *client) updateScreen() {
+	cli.ClearConsole()
+	cli.PrintInputFrame()
+	cli.MoveToInput()
+	*c.currPrintLn = 1
+}
+
+func (c *client) printf(format string, a ...any) {
+	cli.SafePrintf(c.currPrintLn, format, a...)
 }

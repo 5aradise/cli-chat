@@ -10,6 +10,7 @@ This is a simple cli messaging application built with Go. Users can create rooms
 - Real-time messaging
 - Leave and join notifications
 - Kick other members and give them admin rights
+- Automatic deletion of empty chats
 
 ## Requirements
 - Go 1.22

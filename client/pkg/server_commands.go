@@ -9,8 +9,8 @@ var serverCommands map[header]func(*client, []byte) = map[header]func(*client, [
 	chatMsg:     (*client).chatMsg,
 	userMsg:     (*client).userMsg,
 	connectChat: (*client).chatConnResp,
-	exitChat:    (*client).chatExitResp,
 	passAdmin:   (*client).passAdminResp,
+	exitChat:    (*client).chatExitResp,
 }
 
 func (c *client) systemMsg(args []byte) {
@@ -36,9 +36,6 @@ func (c *client) chatConnResp(args []byte) {
 }
 
 func (c *client) passAdminResp(args []byte) {
-	if len(args) == 0 {
-		return
-	}
 	switch args[0] {
 	case 0:
 		if c.isAdmin {

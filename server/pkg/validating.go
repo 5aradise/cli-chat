@@ -18,43 +18,52 @@ const (
 	maxMsgLen      = 106
 )
 
-func isValidUsername(name string) (bool, string) {
+func isValidUsername(name string) (isValid bool, reason string) {
 	if utf8.RuneCountInString(name) > maxUsernameLen {
-		return false, "username is too long (maximum 10 characters)"
+		reason = "username is too long (maximum 10 characters)"
+		return
 	}
 
 	if strings.Contains(name, " ") {
-		return false, "username mustn't contain spaces"
+		reason = "username mustn't contain spaces"
+		return
 	}
 
 	if slices.Contains(reservedNames, name) {
-		return false, "username is equal to reserved name"
+		reason = "username is equal to reserved name"
+		return
 	}
 
 	if !latinAndCyrillicLetters.MatchString(name) {
-		return false, "username must contain at least 1 letter"
+		reason = "username must contain at least 1 letter"
+		return
 	}
 
-	return true, ""
+	isValid = true
+	return
 }
 
-func isValidChatName(name string) (bool, string) {
+func isValidChatName(name string) (isValid bool, reason string) {
 	if utf8.RuneCountInString(name) > maxChatNameLen {
-		return false, "username is too long (maximum 20 characters)"
+		reason = "username is too long (maximum 20 characters)"
+		return
 	}
 
 	if strings.Contains(name, " ") {
-		return false, "chat name mustn't contain spaces"
+		reason = "chat name mustn't contain spaces"
+		return
 	}
 
 	if !latinAndCyrillicLetters.MatchString(name) {
-		return false, "chat name must contain at least 1 letter"
+		reason = "chat name must contain at least 1 letter"
+		return
 	}
 
-	return true, ""
+	isValid = true
+	return
 }
 
-func isValidMsg(msg string) (bool, string) {
+func isValidMsg(msg string) (isValid bool, reason string) {
 	if utf8.RuneCountInString(msg) > maxMsgLen {
 		return false, "your message is too long (maximum 106 characters)"
 	}

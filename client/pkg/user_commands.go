@@ -7,13 +7,28 @@ import (
 )
 
 var userCommands map[string]func(*client, []string) error = map[string]func(*client, []string) error{
-	"help":   (*client).helpReq,
 	"create": (*client).chatCreateReq,
 	"conn":   (*client).chatConnReq,
 	"admin":  (*client).passAdminReq,
+	"kick":   (*client).kickUserReq,
 	"exit":   (*client).chatExitReq,
 	"delete": (*client).chatDeleteReq,
-	"kick":   (*client).kickUserReq,
+	"help":   (*client).helpReq,
+}
+
+func (c *client) sendMsg(msg string) error {
+	if !c.isInChat {
+		return errors.New("you are not connected to any chat")
+	}
+
+	isValid, reas := isValidMsg(msg)
+	if !isValid {
+		return errors.New(reas)
+	}
+
+	c.write(userMsg, []byte(msg))
+	c.printf(formatClientMsg(msg))
+	return nil
 }
 
 func (c *client) chatCreateReq(args []string) error {
@@ -26,7 +41,6 @@ func (c *client) chatCreateReq(args []string) error {
 	}
 
 	chatName := args[0]
-
 	isValid, reas := isValidChatName(chatName)
 	if !isValid {
 		return errors.New(reas)
@@ -46,22 +60,12 @@ func (c *client) chatConnReq(args []string) error {
 	}
 
 	chatName := args[0]
-
 	isValid, reas := isValidChatName(chatName)
 	if !isValid {
 		return errors.New(reas)
 	}
 
 	c.write(connectChat, []byte(chatName))
-	return nil
-}
-
-func (c *client) chatExitReq(args []string) error {
-	if !c.isInChat {
-		return errors.New("you are not in the chat")
-	}
-
-	c.write(exitChat, nil)
 	return nil
 }
 
@@ -79,7 +83,6 @@ func (c *client) passAdminReq(args []string) error {
 	}
 
 	newAdmin := args[0]
-
 	isValid, reas := isValidUsername(newAdmin)
 	if !isValid {
 		return errors.New(reas)
@@ -103,13 +106,21 @@ func (c *client) kickUserReq(args []string) error {
 	}
 
 	userToKick := args[0]
-
 	isValid, reas := isValidUsername(userToKick)
 	if !isValid {
 		return errors.New(reas)
 	}
 
 	c.write(kickUser, []byte(userToKick))
+	return nil
+}
+
+func (c *client) chatExitReq(args []string) error {
+	if !c.isInChat {
+		return errors.New("you are not in the chat")
+	}
+
+	c.write(exitChat, nil)
 	return nil
 }
 
@@ -134,19 +145,5 @@ func (c *client) helpReq(args []string) error {
 	c.printf(cli.Colorize("            /delete              - (admins only) delete chat room", cli.Red))
 	c.printf(cli.Colorize("            /exit                - exits current chat room", cli.Red))
 	c.printf(cli.Colorize("            /help                - shows a list of commands", cli.Red))
-	return nil
-}
-
-func (c *client) sendMsg(msg string) error {
-	if !c.isInChat {
-		return errors.New("you are not connected to any chat")
-	}
-	isValid, reas := isValidMsg(msg)
-	if !isValid {
-		return errors.New(reas)
-	}
-
-	c.write(userMsg, []byte(msg))
-	c.printf(formatClientMsg(msg))
 	return nil
 }
