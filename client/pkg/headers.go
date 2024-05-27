@@ -8,10 +8,12 @@ const (
 	userMsg
 	createChat
 	connectChat
+	passAdmin
+	kickUser
 	exitChat
 	deleteChat
-	passAdmin
 	authAcc
+	authRej
 )
 
 func (h header) setHeader(body []byte) []byte {

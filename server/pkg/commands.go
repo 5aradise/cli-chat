@@ -10,6 +10,7 @@ var commands map[header]func(*server, *user, []byte) error = map[header]func(*se
 	connectChat: (*server).connChat,
 	exitChat:    (*server).exitChat,
 	deleteChat:  (*server).deleteChatCommmand,
+	kickUser:  (*server).deleteUserFromChat,
 	passAdmin:   (*server).passAdmin,
 }
 
@@ -63,6 +64,19 @@ func (s *server) exitChat(user *user, args []byte) error {
 	return user.currChat.deleteUser(user.name)
 }
 
+func (s *server) deleteUserFromChat(user *user, args []byte) error {
+	if user.currChat == nil {
+		return errors.New("you are not in the chat")
+	}
+
+	if user != user.currChat.admin {
+		return errors.New("you do not have permission")
+	}
+
+	userToDelete := string(args)
+	return user.currChat.deleteUser(userToDelete)
+}
+
 func (s *server) deleteChatCommmand(user *user, args []byte) error {
 	if user.currChat == nil {
 		return errors.New("you are not in the chat")
@@ -72,8 +86,7 @@ func (s *server) deleteChatCommmand(user *user, args []byte) error {
 		return errors.New("you do not have permission")
 	}
 
-	s.deleteChat(user.currChat.name)
-	return nil
+	return s.deleteChat(user.currChat.name)
 }
 
 func (s *server) passAdmin(user *user, args []byte) error {

@@ -13,6 +13,7 @@ var userCommands map[string]func(*client, []string) error = map[string]func(*cli
 	"admin":  (*client).passAdminReq,
 	"exit":   (*client).chatExitReq,
 	"delete": (*client).chatDeleteReq,
+	"kick":   (*client).kickUserReq,
 }
 
 func (c *client) chatCreateReq(args []string) error {
@@ -88,6 +89,30 @@ func (c *client) passAdminReq(args []string) error {
 	return nil
 }
 
+func (c *client) kickUserReq(args []string) error {
+	if !c.isInChat {
+		return errors.New("you are not in the chat")
+	}
+
+	if !c.isAdmin {
+		return errors.New("you do not have permission")
+	}
+
+	if len(args) == 0 {
+		return errors.New("to many arguments")
+	}
+
+	userToKick := args[0]
+
+	isValid, reas := isValidUsername(userToKick)
+	if !isValid {
+		return errors.New(reas)
+	}
+
+	c.write(kickUser, []byte(userToKick))
+	return nil
+}
+
 func (c *client) chatDeleteReq(args []string) error {
 	if !c.isInChat {
 		return errors.New("you are not in the chat")
@@ -102,10 +127,13 @@ func (c *client) chatDeleteReq(args []string) error {
 }
 
 func (c *client) helpReq(args []string) error {
-	c.printf(formatSystemMsg("/create {chat name} - creates and connects to new chat room"))
-	c.printf(cli.Colorize("            /conn {chat name}   - connects to chat room", cli.Red))
-	c.printf(cli.Colorize("            /exit               - exits current chat room", cli.Red))
-	c.printf(cli.Colorize("            /help               - shows a list of commands", cli.Red))
+	c.printf(formatSystemMsg("/create {chat name}  - creates and connects to new chat room"))
+	c.printf(cli.Colorize("            /conn {chat name}    - connects to chat room", cli.Red))
+	c.printf(cli.Colorize("            /admin {chat member} - (admins only) transfers admin rights to another chat member", cli.Red))
+	c.printf(cli.Colorize("            /kick {chat member}  - (admins only) kicks a chat member out of the chat room", cli.Red))
+	c.printf(cli.Colorize("            /delete              - (admins only) delete chat room", cli.Red))
+	c.printf(cli.Colorize("            /exit                - exits current chat room", cli.Red))
+	c.printf(cli.Colorize("            /help                - shows a list of commands", cli.Red))
 	return nil
 }
 

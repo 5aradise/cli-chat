@@ -8,9 +8,10 @@ const (
 	userMsg
 	createChat
 	connectChat
+	passAdmin
+	kickUser
 	exitChat
 	deleteChat
-	passAdmin
 	authAcc
 	authRej
 )
