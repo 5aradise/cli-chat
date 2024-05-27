@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
@@ -14,9 +16,11 @@ const bufferSize = 256
 type client struct {
 	conn       net.Conn
 	readBuf    []byte
-	printLn    *int
+	respMux    sync.Mutex
 	isInChat   bool
+	isAdmin    bool
 	chatColors map[string]cli.Color
+	printLn    *int
 }
 
 func New(address string) (*client, error) {
@@ -26,7 +30,7 @@ func New(address string) (*client, error) {
 	}
 	printLn := 1
 	readBuf := make([]byte, bufferSize)
-	return &client{conn, readBuf, &printLn, false, nil}, nil
+	return &client{conn, readBuf, sync.Mutex{}, false, false, nil, &printLn}, nil
 }
 
 func (c *client) Run() {
@@ -61,7 +65,11 @@ func (c *client) listenServer() {
 	var body []byte
 	for {
 		head, body = c.read()
-		c.processResp(head, body)
+		go func() {
+			c.respMux.Lock()
+			c.processResp(head, body)
+			c.respMux.Unlock()
+		}()
 	}
 }
 
@@ -85,6 +93,7 @@ func (c *client) printf(format string, a ...any) {
 }
 
 func (c *client) write(h header, b []byte) {
+	time.Sleep(time.Millisecond)
 	_, err := c.conn.Write(h.setHeader(b))
 	if err != nil {
 		c.shutDown("you've been disconnected from the server")

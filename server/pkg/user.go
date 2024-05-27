@@ -4,10 +4,13 @@ import (
 	"errors"
 	"log"
 	"net"
+	"sync"
+	"time"
 )
 
 type user struct {
 	isActive bool
+	reqMux   sync.Mutex
 	conn     net.Conn
 	readBuf  []byte
 	name     string
@@ -28,10 +31,10 @@ func (s *server) newUser(name string, conn net.Conn) (*user, error) {
 
 	u := &user{
 		isActive: true,
+		reqMux:   sync.Mutex{},
 		conn:     conn,
 		readBuf:  make([]byte, bufferSize),
 		name:     name,
-		currChat: nil,
 	}
 
 	s.users[u.name] = u
@@ -45,20 +48,26 @@ func (s *server) newUser(name string, conn net.Conn) (*user, error) {
 func (u *user) listenConn(s *server) {
 	for u.isActive {
 		head, body := u.read()
-		command, ok := commands[head]
-		if !ok {
-			u.write(systemMsg, []byte("unknown command"))
-			continue
-		}
+		go func() {
+			u.reqMux.Lock()
+			defer u.reqMux.Unlock()
 
-		err := command(s, u, body)
-		if err != nil {
-			u.write(systemMsg, []byte(err.Error()))
-		}
+			command, ok := commands[head]
+			if !ok {
+				u.write(systemMsg, []byte("unknown command"))
+				return
+			}
+
+			err := command(s, u, body)
+			if err != nil {
+				u.write(systemMsg, []byte(err.Error()))
+			}
+		}()
 	}
 }
 
 func (u *user) write(h header, b []byte) {
+	time.Sleep(time.Millisecond)
 	_, err := u.conn.Write(h.setHeader(b))
 	if err != nil {
 		u.isActive = false
