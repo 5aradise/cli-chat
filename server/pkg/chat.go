@@ -11,6 +11,7 @@ type chat struct {
 	c     chan *message
 	users map[string]*user
 	mux   sync.RWMutex
+	admin *user
 }
 
 type message struct {
@@ -47,8 +48,6 @@ func (s *server) newChat(name string) (*chat, error) {
 
 	go chat.broadcast()
 
-	log.Printf("New chat: %s\n", name)
-
 	return chat, nil
 }
 
@@ -56,24 +55,43 @@ func (ch *chat) addUser(u *user) error {
 	ch.mux.Lock()
 	if _, ok := ch.users[u.name]; ok {
 		ch.mux.Unlock()
-		return errors.New("user with this id already in chat")
+		return errors.New("user with this name already in chat")
 	}
 	ch.users[u.name] = u
-	ch.mux.Unlock()
 	u.currChat = ch
+	ch.mux.Unlock()
 
+	u.write(connectChat, []byte(ch.name))
 	ch.chatCall(append([]byte(u.name), addMsg...))
+
+	if ch.admin == nil {
+		err := ch.setAdmin(u.name)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (ch *chat) deleteUser(name string) {
+func (ch *chat) deleteUser(name string) error {
 	ch.mux.Lock()
-	u := ch.users[name]
+	u, ok := ch.users[name]
+	if !ok {
+		ch.mux.Unlock()
+		return errors.New("there is no user by that name in the chat room")
+	}
 	delete(ch.users, name)
 	ch.mux.Unlock()
-	u.currChat = nil
 
+	u.currChat = nil
+	u.write(exitChat, nil)
 	ch.chatCall(append([]byte(u.name), deleteMsg...))
+
+	if u == ch.admin {
+		return ch.setAdmin()
+	}
+	return nil
 }
 
 func (ch *chat) chatCall(msg []byte) {
@@ -85,7 +103,51 @@ func (ch *chat) chatCall(msg []byte) {
 	}
 }
 
+func (ch *chat) setAdmin(name ...string) error {
+	ch.mux.RLock()
+	defer ch.mux.RUnlock()
+
+	oldAdmin := ch.admin
+	if len(name) == 0 {
+		membersCount := len(ch.users)
+		if membersCount == 0 {
+			ch.admin = nil
+		}
+		if oldAdmin != nil {
+			if _, ok := ch.users[oldAdmin.name]; ok && membersCount == 1 {
+				return errors.New("you already admin")
+			}
+		}
+		for _, randMember := range ch.users {
+			if randMember == oldAdmin {
+				continue
+			}
+			ch.admin = randMember
+			break
+		}
+	} else {
+		newAdminName := name[0]
+		if oldAdmin != nil && newAdminName == oldAdmin.name {
+			return errors.New("you already admin")
+		}
+		newAdmin, ok := ch.users[newAdminName]
+		if !ok {
+			return errors.New("there is no user by that name in the chat room")
+		}
+		ch.admin = newAdmin
+	}
+
+	if oldAdmin != nil {
+		oldAdmin.write(passAdmin, []byte{0})
+	}
+	if ch.admin != nil {
+		ch.admin.write(passAdmin, []byte{1})
+	}
+	return nil
+}
+
 func (ch *chat) broadcast() {
+	log.Printf("New chat: %s\n", ch.name)
 	const userMsgDiv byte = 0x00
 	for msg := range ch.c {
 		toSend := append([]byte(msg.sender.name), userMsgDiv)
@@ -99,4 +161,5 @@ func (ch *chat) broadcast() {
 		}
 		ch.mux.RUnlock()
 	}
+	log.Printf("Delete chat: %s\n", ch.name)
 }

@@ -9,6 +9,8 @@ const (
 	createChat
 	connectChat
 	exitChat
+	deleteChat
+	passAdmin
 	authAcc
 )
 

@@ -81,3 +81,20 @@ func (s *server) deleteUser(name string) error {
 	log.Printf("Delete user: %s (%v)\n", name, user.conn.RemoteAddr())
 	return nil
 }
+
+func (s *server) deleteChat(name string) error {
+	s.chatsMux.Lock()
+	defer s.chatsMux.Unlock()
+
+	chat, ok := s.chats[name]
+	if !ok {
+		return fmt.Errorf("cannot find chat with name: %s", name)
+	}
+
+	close(chat.c)
+	for member := range chat.users {
+		chat.deleteUser(member)
+	}
+	delete(s.chats, name)
+	return nil
+}

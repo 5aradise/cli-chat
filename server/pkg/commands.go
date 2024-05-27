@@ -9,6 +9,8 @@ var commands map[header]func(*server, *user, []byte) error = map[header]func(*se
 	createChat:  (*server).createChat,
 	connectChat: (*server).connChat,
 	exitChat:    (*server).exitChat,
+	deleteChat:  (*server).deleteChatCommmand,
+	passAdmin:   (*server).passAdmin,
 }
 
 func (s *server) msgToChat(user *user, args []byte) error {
@@ -34,10 +36,8 @@ func (s *server) createChat(user *user, args []byte) error {
 	if err != nil {
 		return err
 	}
-	chat.addUser(user)
 
-	user.write(connectChat, args)
-	return nil
+	return chat.addUser(user)
 }
 
 func (s *server) connChat(user *user, args []byte) error {
@@ -52,13 +52,7 @@ func (s *server) connChat(user *user, args []byte) error {
 		return errors.New("wrong chat name")
 	}
 
-	err := chat.addUser(user)
-	if err != nil {
-		return err
-	}
-
-	user.write(connectChat, args)
-	return nil
+	return chat.addUser(user)
 }
 
 func (s *server) exitChat(user *user, args []byte) error {
@@ -66,8 +60,35 @@ func (s *server) exitChat(user *user, args []byte) error {
 		return errors.New("you are not in the chat")
 	}
 
-	user.currChat.deleteUser(string(user.name))
+	return user.currChat.deleteUser(user.name)
+}
 
-	user.write(exitChat, nil)
+func (s *server) deleteChatCommmand(user *user, args []byte) error {
+	if user.currChat == nil {
+		return errors.New("you are not in the chat")
+	}
+
+	if user != user.currChat.admin {
+		return errors.New("you do not have permission")
+	}
+
+	s.deleteChat(user.currChat.name)
 	return nil
+}
+
+func (s *server) passAdmin(user *user, args []byte) error {
+	if user.currChat == nil {
+		return errors.New("you are not in the chat")
+	}
+
+	if user != user.currChat.admin {
+		return errors.New("you do not have permission")
+	}
+
+	if len(args) == 0 {
+		return errors.New("to many arguments")
+	}
+
+	newAdmin := string(args)
+	return user.currChat.setAdmin(newAdmin)
 }

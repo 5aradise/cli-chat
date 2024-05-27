@@ -10,7 +10,9 @@ var userCommands map[string]func(*client, []string) error = map[string]func(*cli
 	"help":   (*client).helpReq,
 	"create": (*client).chatCreateReq,
 	"conn":   (*client).chatConnReq,
+	"admin":  (*client).passAdminReq,
 	"exit":   (*client).chatExitReq,
+	"delete": (*client).chatDeleteReq,
 }
 
 func (c *client) chatCreateReq(args []string) error {
@@ -24,7 +26,7 @@ func (c *client) chatCreateReq(args []string) error {
 
 	chatName := args[0]
 
-	isValid, reas := isValidChatName([]byte(chatName))
+	isValid, reas := isValidChatName(chatName)
 	if !isValid {
 		return errors.New(reas)
 	}
@@ -44,7 +46,7 @@ func (c *client) chatConnReq(args []string) error {
 
 	chatName := args[0]
 
-	isValid, reas := isValidChatName([]byte(chatName))
+	isValid, reas := isValidChatName(chatName)
 	if !isValid {
 		return errors.New(reas)
 	}
@@ -55,18 +57,55 @@ func (c *client) chatConnReq(args []string) error {
 
 func (c *client) chatExitReq(args []string) error {
 	if !c.isInChat {
-		c.printf(formatSystemMsg("you are not in the chat"))
-		return nil
+		return errors.New("you are not in the chat")
 	}
 
 	c.write(exitChat, nil)
 	return nil
 }
 
+func (c *client) passAdminReq(args []string) error {
+	if !c.isInChat {
+		return errors.New("you are not in the chat")
+	}
+
+	if !c.isAdmin {
+		return errors.New("you do not have permission")
+	}
+
+	if len(args) == 0 {
+		return errors.New("to many arguments")
+	}
+
+	newAdmin := args[0]
+
+	isValid, reas := isValidUsername(newAdmin)
+	if !isValid {
+		return errors.New(reas)
+	}
+
+	c.write(passAdmin, []byte(newAdmin))
+	return nil
+}
+
+func (c *client) chatDeleteReq(args []string) error {
+	if !c.isInChat {
+		return errors.New("you are not in the chat")
+	}
+
+	if !c.isAdmin {
+		return errors.New("you do not have permission")
+	}
+
+	c.write(deleteChat, nil)
+	return nil
+}
+
 func (c *client) helpReq(args []string) error {
-	c.printf(formatSystemMsg("create {chat name} - creates and connects to new chat room"))
-	c.printf(cli.Colorize("            conn {chat name}   - connects to chat room", cli.RedS))
-	c.printf(cli.Colorize("            exit               - exits current chat room", cli.RedS))
+	c.printf(formatSystemMsg("/create {chat name} - creates and connects to new chat room"))
+	c.printf(cli.Colorize("            /conn {chat name}   - connects to chat room", cli.Red))
+	c.printf(cli.Colorize("            /exit               - exits current chat room", cli.Red))
+	c.printf(cli.Colorize("            /help               - shows a list of commands", cli.Red))
 	return nil
 }
 

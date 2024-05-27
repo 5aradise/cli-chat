@@ -1,6 +1,8 @@
 package client
 
-import "github.com/5aradise/cli-chat/client/internal/cli"
+import (
+	"github.com/5aradise/cli-chat/client/internal/cli"
+)
 
 var serverCommands map[header]func(*client, []byte) = map[header]func(*client, []byte){
 	systemMsg:   (*client).systemMsg,
@@ -8,6 +10,7 @@ var serverCommands map[header]func(*client, []byte) = map[header]func(*client, [
 	userMsg:     (*client).userMsg,
 	connectChat: (*client).chatConnResp,
 	exitChat:    (*client).chatExitResp,
+	passAdmin:   (*client).passAdminResp,
 }
 
 func (c *client) systemMsg(args []byte) {
@@ -28,9 +31,26 @@ func (c *client) userMsg(args []byte) {
 
 func (c *client) chatConnResp(args []byte) {
 	c.updateScreen()
-	c.printf(formatSystemMsg("you have been added to the chat room `" + string(args) + "`"))
 	c.isInChat = true
 	c.chatColors = make(map[string]cli.Color)
+}
+
+func (c *client) passAdminResp(args []byte) {
+	if len(args) == 0 {
+		return
+	}
+	switch args[0] {
+	case 0:
+		if c.isAdmin {
+			c.printf(formatChatMsg("you're no longer a chat room administrator"))
+			c.isAdmin = false
+		}
+	case 1:
+		if !c.isAdmin {
+			c.printf(formatChatMsg("you are new admin of this chat"))
+			c.isAdmin = true
+		}
+	}
 }
 
 func (c *client) chatExitResp(args []byte) {
