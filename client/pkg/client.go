@@ -11,7 +11,10 @@ import (
 	"github.com/5aradise/cli-chat/client/internal/cli"
 )
 
-const bufferSize = 256
+const (
+	bufferSize    = 256
+	disconnectMsg = "you've been disconnected from the server"
+)
 
 type client struct {
 	conn        net.Conn
@@ -44,13 +47,15 @@ func (c *client) Run() {
 }
 
 func (c *client) listenClient(scanner *bufio.Scanner) {
+	var input string
+	var inputLen int
 	for {
-		input, inputLen := cli.Scan(scanner)
+		input, inputLen = cli.Scan(scanner)
 		if inputLen == 0 {
 			continue
 		}
 		if inputLen > cli.MaxInputLen {
-			c.printf(formatSystemMsg("your message is too long (maximum 106 characters)"))
+			c.printf(formatSystemMsg("your message is too long (maximum 118 characters)"))
 			continue
 		}
 		err := c.processReq(input)
@@ -85,14 +90,14 @@ func (c *client) write(h header, b []byte) {
 	time.Sleep(time.Millisecond)
 	_, err := c.conn.Write(h.setHeader(b))
 	if err != nil {
-		c.shutDown("you've been disconnected from the server")
+		c.shutDown(disconnectMsg)
 	}
 }
 
 func (c *client) read() (header, []byte) {
 	l, err := c.conn.Read(c.readBuf)
 	if err != nil {
-		c.shutDown("you've been disconnected from the server")
+		c.shutDown(disconnectMsg)
 	}
 	return getHeader(c.readBuf[:l])
 }

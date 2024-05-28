@@ -16,6 +16,7 @@ const (
 	maxUsernameLen = 10
 	maxChatNameLen = 20
 	maxMsgLen      = 106
+	minMsgLen      = 1
 )
 
 func isValidUsername(name string) (isValid bool, reason string) {
@@ -64,6 +65,9 @@ func isValidChatName(name string) (isValid bool, reason string) {
 }
 
 func isValidMsg(msg string) (isValid bool, reason string) {
+	if utf8.RuneCountInString(msg) < minMsgLen {
+		return false, "your message is too short (minimum 1 character)"
+	}
 	if utf8.RuneCountInString(msg) > maxMsgLen {
 		return false, "your message is too long (maximum 106 characters)"
 	}

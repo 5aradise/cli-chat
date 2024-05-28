@@ -7,7 +7,9 @@ import (
 
 func (c *client) processReq(input string) error {
 	input = strings.Trim(input, " ")
-
+	if len(input) == 0 {
+		return nil
+	}
 	if input[:1] == "/" {
 		if len(input) == 1 {
 			return errors.New("unknown command")

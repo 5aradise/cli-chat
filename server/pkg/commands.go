@@ -18,12 +18,14 @@ func (s *server) msgToChat(user *user, args []byte) error {
 	if user.currChat == nil {
 		return errors.New("you are not connected to any chat")
 	}
-	isValid, reas := isValidMsg(string(args))
+
+	msg := string(args)
+	isValid, reas := isValidMsg(msg)
 	if !isValid {
 		return errors.New(reas)
 	}
 
-	user.currChat.c <- &message{user, args}
+	user.currChat.c <- &message{user, msg}
 
 	return nil
 }

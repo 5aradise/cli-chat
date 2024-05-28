@@ -20,7 +20,7 @@ type chat struct {
 
 type message struct {
 	sender *user
-	text   []byte
+	text   string
 }
 
 const userMsgDiv byte = 0x00

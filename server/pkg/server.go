@@ -101,12 +101,15 @@ func (s *server) deleteChat(name string) error {
 	}
 
 	close(chat.c)
+	chat.deleteTimer.Stop()
 	for memberName, member := range chat.users {
 		if member != chat.admin {
 			chat.deleteUser(memberName)
 		}
 	}
-	chat.deleteUser(chat.admin.name)
+	if chat.admin != nil {
+		chat.deleteUser(chat.admin.name)
+	}
 	delete(s.chats, name)
 
 	log.Printf("Delete chat: %s\n", chat.name)
